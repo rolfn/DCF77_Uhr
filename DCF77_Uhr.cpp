@@ -5,6 +5,7 @@
  */
 
 #include <Arduino.h>
+#include "DCF77_Uhr.h"
 #include <Adafruit_i2c_7seg_LED.h>
 
 // Set LED_BUILTIN if it is not defined by Arduino framework
