@@ -7,6 +7,21 @@
 #ifndef DCF77_UHR_H
 #define DCF77_UHR_H
 
+#include <dcf77.h>
+#include "DCF77_Uhr_utils.h"
+
+#define DCF77_UHR_MAJOR_VERSION 1
+#define DCF77_UHR_MINOR_VERSION 0
+#define DCF77_UHR_PATCH_VERSION 0
+
+// https://gcc.gnu.org/onlinedocs/cpp/Stringification.html
+#define EXPAND_THEN_STRINGIFY(s) STRINGIFY(s)
+#define STRINGIFY(s) #s
+#define DCF77_UHR_VERSION_STRING \
+   (EXPAND_THEN_STRINGIFY(DCF77_UHR_MAJOR_VERSION) "." \
+    EXPAND_THEN_STRINGIFY(DCF77_UHR_MINOR_VERSION) "." \
+    EXPAND_THEN_STRINGIFY(DCF77_UHR_PATCH_VERSION))
+
 #define DCF77_MONITOR_LED 12 // PB4
 //#define DCF77_MONITOR_LED LED_BUILTIN
 #define DCF77_SAMPLE_PIN 13  // PB5 (???)
