@@ -1,36 +1,14 @@
-#include <Adafruit_i2c_7seg_LED.h>
-
 /**
  * DCF77_Uhr.cpp
  * Copyright:  Rolf Niepraschk <Rolf.Niepraschk AT gmx.de>
  * https://github.com/rolfn/DCF77_Uhr
  */
 
-#include <Adafruit_i2c_7seg_LED.h>
-#include <Arduino.h>
-
 #include "DCF77_Uhr.h"
-
-int rawADC = 0;
-int alarm_mode;
-float val = 0.0;
 
 Adafruit_7Seg disp1;
 Adafruit_7Seg disp2;
 Adafruit_7Seg disp3;
-
-int getAlarmMode();
-
-int getAlarmMode() {
-  int rawADC = analogRead(ALARM_MODE_PIN);
-  // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
-  if (rawADC < LEVEL_20_PERCENT)
-    return ALARM_MODE_DISABLED;
-  else if (rawADC > LEVEL_80_PERCENT)
-    return ALARM_MODE_2;
-  else
-    return ALARM_MODE_1;
-}
 
 int xxx;
 
@@ -59,10 +37,11 @@ void setup() {
   disp2.setPoint(COLON);
   disp3.setPoint(COLON);
   //
-  pinMode(BCD1, INPUT_PULLUP);
-  pinMode(BCD2, INPUT_PULLUP);
-  pinMode(BCD4, INPUT_PULLUP);
-  pinMode(BCD8, INPUT_PULLUP);
+  // TODO: setUpPins()
+  pinMode(ALARM_BCD1, INPUT_PULLUP);
+  pinMode(ALARM_BCD2, INPUT_PULLUP);
+  pinMode(ALARM_BCD4, INPUT_PULLUP);
+  pinMode(ALARM_BCD8, INPUT_PULLUP);
   pinMode(ALARM_OFF_PIN, INPUT_PULLUP);
   DDRD = DDRD | B11111100;             // PD2..PD7 as output (BCD selection)
   DDRB = DDRB | B00000011;             // PB0..PB1 as output (BCD selection)
@@ -146,11 +125,13 @@ void loop() {
   // wait for a second
   delay(500);
 
-  alarm_mode = getAlarmMode();
+  getAlarmMode();
+  getAlarmTime(); // TODO: only once per second
 
   Serial.print(millis());
   Serial.print("   ");
-  Serial.print(alarm_mode);
+  Serial.print(DCF77_UHR_VERSION_STRING);
   Serial.print("   ");
-  Serial.println(val);
+  Serial.print(alarm.mode);
+  Serial.println();
 }
