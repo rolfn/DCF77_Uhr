@@ -37,19 +37,22 @@ void setup() {
   disp2.setPoint(COLON);
   disp3.setPoint(COLON);
   //
-  // TODO: setUpPins()
+  // TODO: setupPins()
   pinMode(ALARM_BCD1, INPUT_PULLUP);
   pinMode(ALARM_BCD2, INPUT_PULLUP);
   pinMode(ALARM_BCD4, INPUT_PULLUP);
   pinMode(ALARM_BCD8, INPUT_PULLUP);
-  pinMode(ALARM_OFF_PIN, INPUT_PULLUP);
+  //pinMode(MULTI_BUTTON_PIN, INPUT_PULLUP);
   DDRD = DDRD | B11111100;             // PD2..PD7 as output (BCD selection)
   DDRB = DDRB | B00000011;             // PB0..PB1 as output (BCD selection)
   pinMode(DCF77_MONITOR_LED, OUTPUT);  // nötig?
   //pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
+  setupDCF77_Uhr();
 }
 
 void loop() {
+  btn.tick();
+
   // turn the LED on (HIGH is the voltage level)
   digitalWrite(DCF77_MONITOR_LED, HIGH);
 
@@ -125,8 +128,8 @@ void loop() {
   // wait for a second
   delay(500);
 
-  getAlarmMode();
-  getAlarmTime(); // TODO: only once per second
+  updateAlarmSettings(); // TODO: only once per second
+  //updateModeSettings(); // TODO: only once per second
 
   Serial.print(millis());
   Serial.print("   ");

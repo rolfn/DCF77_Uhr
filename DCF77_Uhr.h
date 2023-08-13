@@ -7,27 +7,25 @@
 #ifndef DCF77_UHR_H
 #define DCF77_UHR_H
 
-#include <Arduino.h>
-#include <Adafruit_i2c_7seg_LED.h>
-#include <dcf77.h> // https://github.com/udoklein/dcf77
 #include "DCF77_Uhr_utils.h"
 
 #define DCF77_UHR_MAJOR_VERSION 1
 #define DCF77_UHR_MINOR_VERSION 0
 #define DCF77_UHR_PATCH_VERSION 0
 
-// https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html
-#define EXPAND_THEN_STRINGIFY(s) STRINGIFY(s)
-#define STRINGIFY(s) #s
 #define DCF77_UHR_VERSION_STRING \
    (EXPAND_THEN_STRINGIFY(DCF77_UHR_MAJOR_VERSION) "." \
     EXPAND_THEN_STRINGIFY(DCF77_UHR_MINOR_VERSION) "." \
     EXPAND_THEN_STRINGIFY(DCF77_UHR_PATCH_VERSION))
 
+#define VIEW_SEC        0 // 14.08.__59
+#define VIEW_DATE       1 // 14.08.2023
+#define VIEW_QTY        2 // ___47_____
+
 #define DCF77_MONITOR_LED 12 // PB4
 //#define DCF77_MONITOR_LED LED_BUILTIN
 #define DCF77_SAMPLE_PIN 13  // PB5 (???)
-//#define DCF77_INVERTED_SAMPLES 1
+#define DCF77_INVERTED_SAMPLES 1
 
 #define ALARM_BCD1 14 // PC0
 #define ALARM_BCD2 15 // PC1
@@ -46,10 +44,10 @@
 #define ALARM2_MINUTE_LO_PIN 9 // PB1
 
 #define ALARM_MODE_DISABLED 0
-#define ALARM_MODE_1 1
-#define ALARM_MODE_2 2
+#define ALARM_MODE_1        1
+#define ALARM_MODE_2        2
 #define ALARM_MODE_PIN A6
-#define ALARM_OFF_PIN 10    // PB2
+#define MULTI_BUTTON_PIN 10 // PB2
 #define ALARM_BUZZER_PIN 11 // PB3
 
 #define ALARM_VAL_UNDEFINED 0xff
