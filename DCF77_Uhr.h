@@ -7,7 +7,14 @@
 #ifndef DCF77_UHR_H
 #define DCF77_UHR_H
 
-#include "DCF77_Uhr_utils.h"
+#include <Arduino.h>
+#include <Adafruit_i2c_7seg_LED.h>
+#include <dcf77.h> // https://github.com/udoklein/dcf77
+/*
+http://www.mathertel.de/Arduino/OneButtonLibrary.aspx
+https://github.com/mathertel/OneButton
+*/
+#include <OneButton.h>
 
 #define DCF77_UHR_MAJOR_VERSION 1
 #define DCF77_UHR_MINOR_VERSION 0
@@ -59,6 +66,19 @@
 #define DISP1_ADR 0x00 // --> 0x70
 #define DISP2_ADR 0x01 // --> 0x71
 #define DISP3_ADR 0x02 // --> 0x72
+
+typedef struct {
+  BCD::bcd_t hour;   // 0..23
+  BCD::bcd_t minute; // 0..59
+  uint8_t mode;
+  bool active;
+} alarm_time_t;
+
+extern alarm_time_t alarm;
+extern uint8_t viewMode;
+extern void updateAlarmSettings();
+extern OneButton btn;
+extern void setupDCF77_Uhr();
 
 #endif
 
