@@ -34,12 +34,17 @@ void myPeriod() {
     disp1.setPoint(POINT_LOWER_LEFT);
   }
   lastLevel = !lastLevel;
-  if (x_minute < 59) x_minute++;
-  else {
+
+  if (x_minute == 59) {
     x_minute = 0;
-    x_hour++;
+    if (x_hour == 23) {
+      x_hour = 0;
+    } else {
+      x_hour++;
+    }
+  } else {
+    x_minute++;
   }
-  if (x_hour == 24) x_hour = 0;
 
   disp1.setDigit(DIGIT_1, x_hour / 10);
   disp1.setDigit(DIGIT_2, x_hour % 10);
@@ -47,6 +52,7 @@ void myPeriod() {
   disp1.setDigit(DIGIT_4, x_minute % 10);
 
   if (viewMode != lastViewMode) {
+    lastViewMode = viewMode;
     disp2.clearAllDigits();
     disp3.clearAllDigits();
     switch (viewMode) {
@@ -73,8 +79,6 @@ void myPeriod() {
         disp3.setDigit(DIGIT_2, 7);
     }
   }
-  lastViewMode = viewMode;
-
 }
 
 void loop() {

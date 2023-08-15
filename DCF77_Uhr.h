@@ -29,7 +29,7 @@ enum views {
   VIEW_UNDEFINED,
   VIEW_SEC,  // 14.08.__59
   VIEW_DATE, // 14.08.2023
-  VIEW_QTY   // ___47_____
+  VIEW_QTY   // _____47___
 };
 
 enum alarmModes { ALARM_DISABLED, ALARM_1, ALARM_2 };
