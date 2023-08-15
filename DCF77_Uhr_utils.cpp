@@ -10,7 +10,7 @@ Adafruit_7Seg disp1;
 Adafruit_7Seg disp2;
 Adafruit_7Seg disp3;
 OneButton uniButton; 
-views viewMode = VIEW_SEC;
+views viewMode = VIEW_SEC, lastViewMode = VIEW_UNDEFINED;
 
 alarm_time_t alarm = {
   .hour =   { .val = ALARM_UNDEFINED },
@@ -46,8 +46,6 @@ void setupDCF77_Uhr() {
   disp2.setBrightness(3);   // 0..16
   disp3.setBrightness(3);   // 0..16
   disp1.setPoint(COLON);
-  disp2.setPoint(COLON);
-  disp3.setPoint(COLON);
   // TODO: setupPins()
   pinMode(ALARM_BCD1, INPUT_PULLUP);
   pinMode(ALARM_BCD2, INPUT_PULLUP);
@@ -120,7 +118,7 @@ uint8_t bcdRead(uint8_t pos) {
 }
    
 void updateAlarmSettings() {
-  alarm.mode = getAlarmMode();
+  //alarm.mode = getAlarmMode(); TODO: activate if possible
   if (alarm.mode == ALARM_1) {
     alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
     alarm.minute.digit.hi = bcdRead(ALARM1_MINUTE_HI_PIN);
@@ -136,28 +134,3 @@ void updateAlarmSettings() {
     alarm.hour.val = ALARM_UNDEFINED;
   }
 }
-
-/*
-
-  switch (myLedState) {
-    case 0:
-      digitalWrite(led1pin, LOW);
-      digitalWrite(led2pin, LOW);
-      break;
-    case 1:
-      digitalWrite(led1pin, HIGH);
-      digitalWrite(led2pin, LOW);
-      break;
-    case 2:
-      digitalWrite(led1pin, LOW);
-      digitalWrite(led2pin, HIGH);
-      break;
-    case 3:
-      digitalWrite(led1pin, HIGH);
-      digitalWrite(led2pin, HIGH);
-      break;
-  }
-
-*/
-
-

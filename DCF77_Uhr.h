@@ -26,6 +26,7 @@ https://github.com/mathertel/OneButton
     EXPAND_THEN_STRINGIFY(DCF77_UHR_PATCH_VERSION))
 
 enum views {
+  VIEW_UNDEFINED,
   VIEW_SEC,  // 14.08.__59
   VIEW_DATE, // 14.08.2023
   VIEW_QTY   // ___47_____
@@ -84,7 +85,7 @@ extern Adafruit_7Seg disp2;
 extern Adafruit_7Seg disp3;
 extern alarm_time_t alarm;
 extern alarm_time_t sync;
-extern views viewMode;
+extern views viewMode, lastViewMode;
 extern void updateAlarmSettings();
 extern OneButton uniButton;
 extern void setupDCF77_Uhr();
