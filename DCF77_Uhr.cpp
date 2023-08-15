@@ -6,52 +6,64 @@
 
 #include "DCF77_Uhr.h"
 
-Adafruit_7Seg disp1;
-Adafruit_7Seg disp2;
-Adafruit_7Seg disp3;
-
-int xxx;
-
-static const int ALARM1_SEL_PINS[] = {  // ?
-  ALARM1_HOUR_HI_PIN, ALARM1_HOUR_LO_PIN, ALARM1_MINUTE_HI_PIN,
-  ALARM1_MINUTE_LO_PIN
-};
-
-static const int ALARM2_SEL_PINS[] = {  // ?
-  ALARM2_HOUR_HI_PIN, ALARM2_HOUR_LO_PIN, ALARM2_MINUTE_HI_PIN,
-  ALARM2_MINUTE_LO_PIN
-};
+uint8_t xxx;
+uint8_t x_minute = 0;
+uint8_t x_hour = 0;
 
 void setup() {
   analogReference(DEFAULT);
   Serial.begin(9600);
   while (!Serial);
   Serial.println(__FILE__);
-  disp1.begin(DISP1_ADR);
-  disp2.begin(DISP2_ADR);
-  disp3.begin(DISP3_ADR);
-  disp1.setBrightness(16);  // 0..16
-  disp2.setBrightness(3);   // 0..16
-  disp3.setBrightness(3);   // 0..16
-  disp1.setPoint(COLON);
-  disp2.setPoint(COLON);
-  disp3.setPoint(COLON);
   //
-  // TODO: setupPins()
-  pinMode(ALARM_BCD1, INPUT_PULLUP);
-  pinMode(ALARM_BCD2, INPUT_PULLUP);
-  pinMode(ALARM_BCD4, INPUT_PULLUP);
-  pinMode(ALARM_BCD8, INPUT_PULLUP);
-  //pinMode(MULTI_BUTTON_PIN, INPUT_PULLUP);
-  DDRD = DDRD | B11111100;             // PD2..PD7 as output (BCD selection)
-  DDRB = DDRB | B00000011;             // PB0..PB1 as output (BCD selection)
-  pinMode(DCF77_MONITOR_LED, OUTPUT);  // nötig?
-  //pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
   setupDCF77_Uhr();
 }
 
+#define PERIOD 1000
+unsigned long time_now = 0;
+uint8_t lastLevel = LOW;
+
+void myPeriod() {
+  lastLevel = !lastLevel;
+  digitalWrite(DCF77_MONITOR_LED, lastLevel);
+  if (x_minute < 59) x_minute++;
+  else {
+    x_minute = 0;
+    x_hour++;
+  }
+  if (x_hour == 24) x_hour = 0;
+
+  disp1.setDigit(DIGIT_1, x_hour / 10);
+  disp1.setDigit(DIGIT_2, x_hour % 10);
+  disp1.setDigit(DIGIT_3, x_minute / 10);
+  disp1.setDigit(DIGIT_4, x_minute % 10);
+
+  switch (viewMode) {
+    case VIEW_SEC:
+      disp3.setDigit(DIGIT_4, VIEW_SEC);
+      break;
+    case VIEW_DATE:
+      disp3.setDigit(DIGIT_4, VIEW_DATE);
+      break;
+    case VIEW_QTY:
+      disp3.setDigit(DIGIT_4, VIEW_QTY);
+  }
+
+}
+
 void loop() {
-  btn.tick();
+  uniButton.tick();
+  //updateAlarmSettings(); // TODO: only once per second
+  //updateModeSettings(); // TODO: only once per second
+
+  if((unsigned long)(millis() - time_now) > PERIOD) {
+    time_now = millis();
+    myPeriod();
+  }
+  
+  delay(10);
+
+  /*
 
   // turn the LED on (HIGH is the voltage level)
   digitalWrite(DCF77_MONITOR_LED, HIGH);
@@ -128,13 +140,12 @@ void loop() {
   // wait for a second
   delay(500);
 
-  updateAlarmSettings(); // TODO: only once per second
-  //updateModeSettings(); // TODO: only once per second
-
   Serial.print(millis());
   Serial.print("   ");
   Serial.print(DCF77_UHR_VERSION_STRING);
   Serial.print("   ");
   Serial.print(alarm.mode);
   Serial.println();
+  
+  */
 }

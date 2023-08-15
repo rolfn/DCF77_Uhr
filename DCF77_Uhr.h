@@ -25,14 +25,26 @@ https://github.com/mathertel/OneButton
     EXPAND_THEN_STRINGIFY(DCF77_UHR_MINOR_VERSION) "." \
     EXPAND_THEN_STRINGIFY(DCF77_UHR_PATCH_VERSION))
 
-#define VIEW_SEC        0 // 14.08.__59
-#define VIEW_DATE       1 // 14.08.2023
-#define VIEW_QTY        2 // ___47_____
+enum views {
+  VIEW_SEC,  // 14.08.__59
+  VIEW_DATE, // 14.08.2023
+  VIEW_QTY   // ___47_____
+};
+
+enum alarmModes { ALARM_DISABLED, ALARM_1, ALARM_2 };
 
 #define DCF77_MONITOR_LED 12 // PB4
 //#define DCF77_MONITOR_LED LED_BUILTIN
 #define DCF77_SAMPLE_PIN 13  // PB5 (???)
 #define DCF77_INVERTED_SAMPLES 1
+
+typedef struct {
+  BCD::bcd_t hour;   // 0..23
+  BCD::bcd_t minute; // 0..59
+  unsigned long period; // useful?
+  alarmModes mode;
+  bool active;
+} alarm_time_t;
 
 #define ALARM_BCD1 14 // PC0
 #define ALARM_BCD2 15 // PC1
@@ -50,14 +62,14 @@ https://github.com/mathertel/OneButton
 #define ALARM2_MINUTE_HI_PIN 8 // PB0
 #define ALARM2_MINUTE_LO_PIN 9 // PB1
 
-#define ALARM_MODE_DISABLED 0
-#define ALARM_MODE_1        1
-#define ALARM_MODE_2        2
 #define ALARM_MODE_PIN A6
-#define MULTI_BUTTON_PIN 10 // PB2
+#define UNI_BUTTON_PIN 10 // PB2
 #define ALARM_BUZZER_PIN 11 // PB3
 
-#define ALARM_VAL_UNDEFINED 0xff
+#define ALARM_UNDEFINED 0xff
+
+#define SYNC_HOUR 2
+#define SYNC_MINUTE 30
 
 #define LEVEL_20_PERCENT 205 // 1023 * 20 / 100 
 #define LEVEL_80_PERCENT 818 // 1023 * 80 / 100
@@ -67,17 +79,14 @@ https://github.com/mathertel/OneButton
 #define DISP2_ADR 0x01 // --> 0x71
 #define DISP3_ADR 0x02 // --> 0x72
 
-typedef struct {
-  BCD::bcd_t hour;   // 0..23
-  BCD::bcd_t minute; // 0..59
-  uint8_t mode;
-  bool active;
-} alarm_time_t;
-
+extern Adafruit_7Seg disp1;
+extern Adafruit_7Seg disp2;
+extern Adafruit_7Seg disp3;
 extern alarm_time_t alarm;
-extern uint8_t viewMode;
+extern alarm_time_t sync;
+extern views viewMode;
 extern void updateAlarmSettings();
-extern OneButton btn;
+extern OneButton uniButton;
 extern void setupDCF77_Uhr();
 
 #endif

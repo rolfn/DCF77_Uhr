@@ -6,27 +6,68 @@
 
 #include "DCF77_Uhr.h"
 
-OneButton btn; // Name?
-uint8_t viewMode = VIEW_SEC;
+Adafruit_7Seg disp1;
+Adafruit_7Seg disp2;
+Adafruit_7Seg disp3;
+OneButton uniButton; 
+views viewMode = VIEW_SEC;
 
 alarm_time_t alarm = {
-  .hour =   { .val = ALARM_VAL_UNDEFINED },
-  .minute = { .val = ALARM_VAL_UNDEFINED }, 
-  .mode = ALARM_MODE_DISABLED,
+  .hour =   { .val = ALARM_UNDEFINED },
+  .minute = { .val = ALARM_UNDEFINED }, 
+  .period = 0,
+  .mode = ALARM_DISABLED,
   .active = false
 };
 
+alarm_time_t sync = {
+  .hour =   { .val = SYNC_HOUR },
+  .minute = { .val = SYNC_MINUTE },
+  .period = 0, 
+  .mode = ALARM_DISABLED,
+  .active = true
+};
+
+void handleSingleClick() {
+  if (alarm.mode == ALARM_DISABLED) {
+    if (viewMode == VIEW_SEC) viewMode = VIEW_DATE;
+    else if (viewMode == VIEW_DATE) viewMode = VIEW_QTY;
+    else viewMode = VIEW_SEC;
+  } else {
+    // TODO: Snooze (Alarm)
+  }
+}
+
 void setupDCF77_Uhr() {
-  btn = OneButton(
-    MULTI_BUTTON_PIN, // Input pin for the button
+  disp1.begin(DISP1_ADR);
+  disp2.begin(DISP2_ADR);
+  disp3.begin(DISP3_ADR);
+  disp1.setBrightness(16);  // 0..16
+  disp2.setBrightness(3);   // 0..16
+  disp3.setBrightness(3);   // 0..16
+  disp1.setPoint(COLON);
+  disp2.setPoint(COLON);
+  disp3.setPoint(COLON);
+  // TODO: setupPins()
+  pinMode(ALARM_BCD1, INPUT_PULLUP);
+  pinMode(ALARM_BCD2, INPUT_PULLUP);
+  pinMode(ALARM_BCD4, INPUT_PULLUP);
+  pinMode(ALARM_BCD8, INPUT_PULLUP);
+  DDRD = DDRD | B11111100;             // PD2..PD7 as output (BCD selection)
+  DDRB = DDRB | B00000011;             // PB0..PB1 as output (BCD selection)
+  pinMode(DCF77_MONITOR_LED, OUTPUT);  // nötig?
+  //pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
+  uniButton = OneButton(
+    UNI_BUTTON_PIN, // Input pin for the button
     true,             // Button is active LOW
     true              // Enable internal pull-up resistor
   );
-  btn.setPressTicks(3000);
+  uniButton.setPressTicks(3000); // ???
+  uniButton.attachClick(handleSingleClick); // Single Click event attachment
   /*
-  btn.attachClick(handleSingleClick);        // Single Click event attachment
-  btn.attachDoubleClick(handleDoubleClick);  // Double Click event attachment
-  btn.attachLongPressStart(handleLongPress); // Long Press event attachment
+  uniButton.attachClick(handleSingleClick);        // Single Click event attachment
+  uniButton.attachDoubleClick(handleDoubleClick);  // Double Click event attachment
+  uniButton.attachLongPressStart(handleLongPress); // Long Press event attachment
   */
 }
 
@@ -62,11 +103,11 @@ uint8_t getAlarmMode() {
   int rawADC = analogRead(ALARM_MODE_PIN);
   // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
   if (rawADC < LEVEL_20_PERCENT)
-    return ALARM_MODE_DISABLED;
+    return ALARM_DISABLED;
   else if (rawADC > LEVEL_80_PERCENT)
-    return ALARM_MODE_2;
+    return ALARM_2;
   else
-    return ALARM_MODE_1;
+    return ALARM_1;
 }
 
 uint8_t bcdRead(uint8_t pos) {
@@ -80,18 +121,43 @@ uint8_t bcdRead(uint8_t pos) {
    
 void updateAlarmSettings() {
   alarm.mode = getAlarmMode();
-  if (alarm.mode == ALARM_MODE_1) {
+  if (alarm.mode == ALARM_1) {
     alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
     alarm.minute.digit.hi = bcdRead(ALARM1_MINUTE_HI_PIN);
     alarm.hour.digit.lo = bcdRead(ALARM1_HOUR_LO_PIN);
     alarm.hour.digit.hi = bcdRead(ALARM1_HOUR_HI_PIN);    
-  } else if (alarm.mode == ALARM_MODE_2) {
+  } else if (alarm.mode == ALARM_2) {
     alarm.minute.digit.lo = bcdRead(ALARM2_MINUTE_LO_PIN);
     alarm.minute.digit.hi = bcdRead(ALARM2_MINUTE_HI_PIN);
     alarm.hour.digit.lo = bcdRead(ALARM2_HOUR_LO_PIN);
     alarm.hour.digit.hi = bcdRead(ALARM2_HOUR_HI_PIN);  
-  } else {// ALARM_MODE_DISABLED
-    alarm.minute.val = ALARM_VAL_UNDEFINED;
-    alarm.hour.val = ALARM_VAL_UNDEFINED;
+  } else {// ALARM_DISABLED
+    alarm.minute.val = ALARM_UNDEFINED;
+    alarm.hour.val = ALARM_UNDEFINED;
   }
-} 
+}
+
+/*
+
+  switch (myLedState) {
+    case 0:
+      digitalWrite(led1pin, LOW);
+      digitalWrite(led2pin, LOW);
+      break;
+    case 1:
+      digitalWrite(led1pin, HIGH);
+      digitalWrite(led2pin, LOW);
+      break;
+    case 2:
+      digitalWrite(led1pin, LOW);
+      digitalWrite(led2pin, HIGH);
+      break;
+    case 3:
+      digitalWrite(led1pin, HIGH);
+      digitalWrite(led2pin, HIGH);
+      break;
+  }
+
+*/
+
+
