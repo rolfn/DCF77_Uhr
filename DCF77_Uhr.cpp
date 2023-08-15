@@ -7,8 +7,7 @@
 #include "DCF77_Uhr.h"
 
 uint8_t xxx;
-uint8_t x_minute = 0;
-uint8_t x_hour = 0;
+uint8_t x_second = 0, x_minute = 0, x_hour = 0;
 
 void setup() {
   analogReference(DEFAULT);
@@ -34,6 +33,12 @@ void myPeriod() {
     disp1.setPoint(POINT_LOWER_LEFT);
   }
   lastLevel = !lastLevel;
+
+  if (x_second == 59) {
+    x_second = 0;
+  } else {
+    x_second++;
+  }
 
   if (x_minute == 59) {
     x_minute = 0;
@@ -61,8 +66,6 @@ void myPeriod() {
         disp2.setDigit(DIGIT_2, 5, true);
         disp2.setDigit(DIGIT_3, 0);
         disp2.setDigit(DIGIT_4, 8, true);
-        disp3.setDigit(DIGIT_3, 5);
-        disp3.setDigit(DIGIT_4, 9);
         break;
       case VIEW_DATE:
         disp2.setDigit(DIGIT_1, 1);
@@ -78,6 +81,10 @@ void myPeriod() {
         disp3.setDigit(DIGIT_1, 4);
         disp3.setDigit(DIGIT_2, 7);
     }
+  }
+  if (viewMode == VIEW_SEC) {
+    disp3.setDigit(DIGIT_3, x_second / 10);
+    disp3.setDigit(DIGIT_4, x_second % 10);
   }
 }
 
