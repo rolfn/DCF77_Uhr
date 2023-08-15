@@ -51,11 +51,6 @@ void myPeriod() {
     x_minute++;
   }
 
-  disp1.setDigit(DIGIT_1, x_hour / 10);
-  disp1.setDigit(DIGIT_2, x_hour % 10);
-  disp1.setDigit(DIGIT_3, x_minute / 10);
-  disp1.setDigit(DIGIT_4, x_minute % 10);
-
   if (viewMode != lastViewMode) {
     lastViewMode = viewMode;
     disp2.clearAllDigits();
@@ -82,10 +77,16 @@ void myPeriod() {
         disp3.setDigit(DIGIT_2, 7);
     }
   }
+
+  disp1.setDigit(DIGIT_1, x_hour / 10);
+  disp1.setDigit(DIGIT_2, x_hour % 10);
+  disp1.setDigit(DIGIT_3, x_minute / 10);
+  disp1.setDigit(DIGIT_4, x_minute % 10);
   if (viewMode == VIEW_SEC) {
     disp3.setDigit(DIGIT_3, x_second / 10);
     disp3.setDigit(DIGIT_4, x_second % 10);
   }
+
 }
 
 void loop() {

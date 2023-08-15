@@ -60,7 +60,8 @@ void setupDCF77_Uhr() {
     true,             // Button is active LOW
     true              // Enable internal pull-up resistor
   );
-  uniButton.setPressTicks(3000); // ???
+  uniButton.setClickMs(SINGLE_CLICK_TIME);
+  uniButton.setPressMs(PRESS_TIME);
   uniButton.attachClick(handleSingleClick); // Single Click event attachment
   /*
   uniButton.attachClick(handleSingleClick);        // Single Click event attachment

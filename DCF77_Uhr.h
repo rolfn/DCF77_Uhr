@@ -80,6 +80,10 @@ typedef struct {
 #define DISP2_ADR 0x01 // --> 0x71
 #define DISP3_ADR 0x02 // --> 0x72
 
+#define SINGLE_CLICK_TIME 200
+#define PRESS_TIME 1000
+#define LONG_PRESS_TIME 3000
+
 extern Adafruit_7Seg disp1;
 extern Adafruit_7Seg disp2;
 extern Adafruit_7Seg disp3;
