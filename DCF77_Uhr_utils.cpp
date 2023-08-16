@@ -11,6 +11,7 @@ Adafruit_7Seg disp2;
 Adafruit_7Seg disp3;
 OneButton uniButton; 
 views viewMode = VIEW_SEC, lastViewMode = VIEW_UNDEFINED;
+bool radioActive = false;
 
 alarm_time_t alarm = {
   .hour =   { .val = ALARM_UNDEFINED },
@@ -28,13 +29,35 @@ alarm_time_t sync = {
   .active = true
 };
 
+// this function will be called when the button is released within SINGLE_CLICK_TIME.
 void handleSingleClick() {
-  if (alarm.mode == ALARM_DISABLED) {
+  if (radioActive) {
+    radioActive = false;
+    disp1.normal();
+    disp2.normal();
+    disp3.normal();
+  }
+  if (alarm.active) {
+    // TODO: Snooze (Alarm)
+  } else {
     if (viewMode == VIEW_SEC) viewMode = VIEW_DATE;
     else if (viewMode == VIEW_DATE) viewMode = VIEW_QTY;
     else viewMode = VIEW_SEC;
+  }
+}
+
+// this function will be called when the key is released after at least PRESS_TIME_MIN.
+void LongPressStop(void *btn) {
+  unsigned long delta = ((OneButton *)btn)->getPressedMs();
+  Serial.print("Delta Time (ms): "); Serial.println(delta);
+  if (delta < LONG_PRESS_TIME) {
+    Serial.println("< LONG_PRESS_TIME");
   } else {
-    // TODO: Snooze (Alarm)
+    Serial.println(">= LONG_PRESS_TIME");
+    radioActive = true;
+    disp1.sleep();
+    disp2.sleep();
+    disp3.sleep();
   }
 }
 
@@ -62,12 +85,8 @@ void setupDCF77_Uhr() {
   );
   uniButton.setClickMs(SINGLE_CLICK_TIME);
   uniButton.setPressMs(PRESS_TIME);
-  uniButton.attachClick(handleSingleClick); // Single Click event attachment
-  /*
-  uniButton.attachClick(handleSingleClick);        // Single Click event attachment
-  uniButton.attachDoubleClick(handleDoubleClick);  // Double Click event attachment
-  uniButton.attachLongPressStart(handleLongPress); // Long Press event attachment
-  */
+  uniButton.attachClick(handleSingleClick); // Single Click event
+  uniButton.attachLongPressStop(LongPressStop, &uniButton); // Long Press Stop event 
 }
 
 uint8_t getAlarmMode() {
@@ -101,9 +120,9 @@ uint8_t getAlarmMode() {
   */
   int rawADC = analogRead(ALARM_MODE_PIN);
   // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
-  if (rawADC < LEVEL_20_PERCENT)
+  if (rawADC < ADC_20_PERCENT)
     return ALARM_DISABLED;
-  else if (rawADC > LEVEL_80_PERCENT)
+  else if (rawADC > ADC_80_PERCENT)
     return ALARM_2;
   else
     return ALARM_1;

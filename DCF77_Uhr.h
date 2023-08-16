@@ -72,17 +72,17 @@ typedef struct {
 #define SYNC_HOUR 2
 #define SYNC_MINUTE 30
 
-#define LEVEL_20_PERCENT 205 // 1023 * 20 / 100 
-#define LEVEL_80_PERCENT 818 // 1023 * 80 / 100
+#define ADC_20_PERCENT 205 // 1023 * 20 / 100 
+#define ADC_80_PERCENT 818 // 1023 * 80 / 100
 #define AREF 5.0
 
-#define DISP1_ADR 0x00 // --> 0x70
-#define DISP2_ADR 0x01 // --> 0x71
-#define DISP3_ADR 0x02 // --> 0x72
+#define DISP1_ADR 0x00 // i2c address: 0x70
+#define DISP2_ADR 0x01 // i2c address: 0x71
+#define DISP3_ADR 0x02 // i2c address: 0x72
 
-#define SINGLE_CLICK_TIME 200
-#define PRESS_TIME 1000
-#define LONG_PRESS_TIME 3000
+#define SINGLE_CLICK_TIME 200 // ms
+#define PRESS_TIME 1000       // ms
+#define LONG_PRESS_TIME 3000  // ms
 
 extern Adafruit_7Seg disp1;
 extern Adafruit_7Seg disp2;
@@ -93,6 +93,7 @@ extern views viewMode, lastViewMode;
 extern void updateAlarmSettings();
 extern OneButton uniButton;
 extern void setupDCF77_Uhr();
+extern bool radioActive;
 
 #endif
 
