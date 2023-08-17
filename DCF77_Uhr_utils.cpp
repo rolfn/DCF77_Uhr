@@ -145,6 +145,11 @@ void updateAlarmSettings() {
   }
 }
 
+// Turn piezo buzzer on or off
+void setBuzzer(uint8_t x) {
+  digitalWrite(BUZZER_PIN, x); 
+}
+
 void setupDCF77_Uhr() {
   disp1.begin(DISP1_ADR);
   disp2.begin(DISP2_ADR);
@@ -175,13 +180,7 @@ void setupDCF77_Uhr() {
   uniButton.attachLongPressStop(handleLongPressStop,
     &uniButton); // Long Press Stop event
   pinMode(BUZZER_PIN, OUTPUT);
-  ///digitalWrite(BUZZER_PIN, LOW); // nötig?
-  EasyBuzzer.setPin(BUZZER_PIN);
-  //EasyBuzzer.beep(2000); // 2000 Hz
-  //delay(5000);
-  //EasyBuzzer.stopBeep();
-  EasyBuzzer.singleBeep(
-    2000,	// Frequency in hertz(HZ).
-    5000	// Duration of the beep in milliseconds(ms).
-  );
+  setBuzzer(ON);
+  delay(500);
+  setBuzzer(OFF);
 }

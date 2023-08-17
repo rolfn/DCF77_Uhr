@@ -92,7 +92,7 @@ void myPeriod() {
 
 void loop() {
   uniButton.tick();
-  EasyBuzzer.update();
+  //EasyBuzzer.update();
 
   if ((unsigned long)(millis() - time_now) > PERIOD) {
     time_now = millis();

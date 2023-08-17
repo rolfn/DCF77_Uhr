@@ -9,7 +9,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_i2c_7seg_LED.h>
-#include <EasyBuzzer.h>
+//#include <EasyBuzzer.h>
 #include <dcf77.h> // https://github.com/udoklein/dcf77
 /*
 http://www.mathertel.de/Arduino/OneButtonLibrary.aspx
@@ -85,6 +85,9 @@ typedef struct {
 #define PRESS_TIME 1000       // ms
 #define LONG_PRESS_TIME 3000  // ms
 
+#define ON HIGH
+#define OFF LOW
+
 extern Adafruit_7Seg disp1;
 extern Adafruit_7Seg disp2;
 extern Adafruit_7Seg disp3;
@@ -96,6 +99,7 @@ extern OneButton uniButton;
 extern void setupDCF77_Uhr();
 extern void setNormalMode();
 extern void setSleepMode();
+extern void setBuzzer(uint8_t x);
 
 #endif
 
