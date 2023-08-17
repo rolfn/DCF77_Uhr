@@ -11,7 +11,6 @@ Adafruit_7Seg disp2;
 Adafruit_7Seg disp3;
 OneButton uniButton; 
 views viewMode = VIEW_SEC, lastViewMode = VIEW_UNDEFINED;
-bool radioActive = false;
 
 alarm_time_t alarm = {
   .hour =   { .val = ALARM_UNDEFINED },
@@ -26,72 +25,64 @@ alarm_time_t sync = {
   .minute = { .val = SYNC_MINUTE },
   .period = 0, 
   .mode = ALARM_DISABLED,
-  .active = true
+  .active = false
 };
+
+void setNormalMode() {
+  sync.active = false;
+  disp1.normal();
+  disp2.normal();
+  disp3.normal();
+}
+
+void setSleepMode() {
+  sync.active = true;
+  disp1.sleep();
+  disp2.sleep();
+  disp3.sleep();
+}
 
 // this function will be called when the button is released within SINGLE_CLICK_TIME.
 void handleSingleClick() {
-  if (radioActive) {
-    radioActive = false;
-    disp1.normal();
-    disp2.normal();
-    disp3.normal();
-  }
-  if (alarm.active) {
-    // TODO: Snooze (Alarm)
+  Serial.println("SINGLE_CLICK_TIME");
+  if (sync.active) {
+    // TODO: stop syncing
+    setNormalMode();
   } else {
-    if (viewMode == VIEW_SEC) viewMode = VIEW_DATE;
-    else if (viewMode == VIEW_DATE) viewMode = VIEW_QTY;
-    else viewMode = VIEW_SEC;
+    if (alarm.active) {
+      // TODO: Alarm in snooze mode
+    } else {// set next view mode
+      if (viewMode == VIEW_SEC) viewMode = VIEW_DATE;
+      else if (viewMode == VIEW_DATE) viewMode = VIEW_QTY;
+      else viewMode = VIEW_SEC;
+    }
   }
 }
 
-// this function will be called when the key is released after at least PRESS_TIME_MIN.
-void LongPressStop(void *btn) {
+// this function will be called several times after PRESS_TIME has expired.
+void handleDuringLongPress(void *btn) {
   unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  Serial.print("Delta Time (ms): "); Serial.println(delta);
-  if (delta < LONG_PRESS_TIME) {
-    Serial.println("< LONG_PRESS_TIME");
-  } else {
+  if (delta >= LONG_PRESS_TIME && !sync.active) {
+    Serial.print("Delta Time (ms): "); Serial.println(delta);
+    // TODO: start syncing
     Serial.println(">= LONG_PRESS_TIME");
-    radioActive = true;
-    disp1.sleep();
-    disp2.sleep();
-    disp3.sleep();
+    setSleepMode();
   }
 }
 
-void setupDCF77_Uhr() {
-  disp1.begin(DISP1_ADR);
-  disp2.begin(DISP2_ADR);
-  disp3.begin(DISP3_ADR);
-  disp1.setBrightness(16);  // 0..16
-  disp2.setBrightness(3);   // 0..16
-  disp3.setBrightness(3);   // 0..16
-  disp1.setPoint(COLON);
-  // TODO: setupPins()
-  pinMode(ALARM_BCD1, INPUT_PULLUP);
-  pinMode(ALARM_BCD2, INPUT_PULLUP);
-  pinMode(ALARM_BCD4, INPUT_PULLUP);
-  pinMode(ALARM_BCD8, INPUT_PULLUP);
-  DDRD = DDRD | B11111100;             // PD2..PD7 as output (BCD selection)
-  DDRB = DDRB | B00000011;             // PB0..PB1 as output (BCD selection)
-  pinMode(DCF77_MONITOR_LED, OUTPUT);  // nötig?
-  //pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
-  uniButton = OneButton(
-    UNI_BUTTON_PIN, // Input pin for the button
-    true,             // Button is active LOW
-    true              // Enable internal pull-up resistor
-  );
-  uniButton.setClickMs(SINGLE_CLICK_TIME);
-  uniButton.setPressMs(PRESS_TIME);
-  uniButton.attachClick(handleSingleClick); // Single Click event
-  uniButton.attachLongPressStop(LongPressStop, &uniButton); // Long Press Stop event 
+// this function will be called when the key is released after PRESS_TIME has expired.
+void handleLongPressStop(void *btn) {
+  unsigned long delta = ((OneButton *)btn)->getPressedMs();
+  if (delta < LONG_PRESS_TIME) {
+    Serial.print("Delta Time (ms): "); Serial.println(delta);
+    Serial.println("< LONG_PRESS_TIME");
+    // TODO: Alarm deactivate
+    alarm.active = false;
+  } 
 }
 
 uint8_t getAlarmMode() {
   /*
-
     Determines the alarm mode as folows:
     
           o  VCC
@@ -116,7 +107,6 @@ uint8_t getAlarmMode() {
          '-'
           |
          --- GND   
-
   */
   int rawADC = analogRead(ALARM_MODE_PIN);
   // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
@@ -153,4 +143,35 @@ void updateAlarmSettings() {
     alarm.minute.val = ALARM_UNDEFINED;
     alarm.hour.val = ALARM_UNDEFINED;
   }
+}
+
+void setupDCF77_Uhr() {
+  disp1.begin(DISP1_ADR);
+  disp2.begin(DISP2_ADR);
+  disp3.begin(DISP3_ADR);
+  disp1.setBrightness(16);  // 0..16
+  disp2.setBrightness(3);   // 0..16
+  disp3.setBrightness(3);   // 0..16
+  disp1.setPoint(COLON);
+  // TODO: setupPins()
+  pinMode(ALARM_BCD1, INPUT_PULLUP);
+  pinMode(ALARM_BCD2, INPUT_PULLUP);
+  pinMode(ALARM_BCD4, INPUT_PULLUP);
+  pinMode(ALARM_BCD8, INPUT_PULLUP);
+  DDRD = DDRD | B11111100;             // PD2..PD7 as output (BCD selection)
+  DDRB = DDRB | B00000011;             // PB0..PB1 as output (BCD selection)
+  pinMode(DCF77_MONITOR_LED, OUTPUT);  // nötig?
+  //pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
+  uniButton = OneButton(
+    UNI_BUTTON_PIN, // Input pin for the button
+    true,           // Button is active LOW
+    true            // Enable internal pull-up resistor
+  );
+  uniButton.setClickMs(SINGLE_CLICK_TIME);
+  uniButton.setPressMs(PRESS_TIME);
+  uniButton.attachClick(handleSingleClick); // Single Click event
+  uniButton.attachDuringLongPress(handleDuringLongPress,
+    &uniButton); // During Long Press events
+  uniButton.attachLongPressStop(handleLongPressStop,
+    &uniButton); // Long Press Stop event 
 }

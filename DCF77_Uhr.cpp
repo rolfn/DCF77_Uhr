@@ -52,7 +52,6 @@ void myPeriod() {
   } else {
     x_minute++;
   }
-
   if (viewMode != lastViewMode) {
     lastViewMode = viewMode;
     disp2.clearAll();

@@ -64,7 +64,7 @@ typedef struct {
 #define ALARM2_MINUTE_LO_PIN 9 // PB1
 
 #define ALARM_MODE_PIN A6
-#define UNI_BUTTON_PIN 10 // PB2
+#define UNI_BUTTON_PIN 10   // PB2
 #define ALARM_BUZZER_PIN 11 // PB3
 
 #define ALARM_UNDEFINED 0xff
@@ -93,7 +93,8 @@ extern views viewMode, lastViewMode;
 extern void updateAlarmSettings();
 extern OneButton uniButton;
 extern void setupDCF77_Uhr();
-extern bool radioActive;
+extern void setNormalMode();
+extern void setSleepMode();
 
 #endif
 
