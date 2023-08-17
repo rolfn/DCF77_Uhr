@@ -9,6 +9,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_i2c_7seg_LED.h>
+#include <EasyBuzzer.h>
 #include <dcf77.h> // https://github.com/udoklein/dcf77
 /*
 http://www.mathertel.de/Arduino/OneButtonLibrary.aspx
@@ -64,8 +65,8 @@ typedef struct {
 #define ALARM2_MINUTE_LO_PIN 9 // PB1
 
 #define ALARM_MODE_PIN A6
-#define UNI_BUTTON_PIN 10   // PB2
-#define ALARM_BUZZER_PIN 11 // PB3
+#define UNI_BUTTON_PIN 10      // PB2
+#define BUZZER_PIN 11          // PB3
 
 #define ALARM_UNDEFINED 0xff
 

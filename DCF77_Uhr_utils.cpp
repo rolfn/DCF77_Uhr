@@ -173,5 +173,15 @@ void setupDCF77_Uhr() {
   uniButton.attachDuringLongPress(handleDuringLongPress,
     &uniButton); // During Long Press events
   uniButton.attachLongPressStop(handleLongPressStop,
-    &uniButton); // Long Press Stop event 
+    &uniButton); // Long Press Stop event
+  pinMode(BUZZER_PIN, OUTPUT);
+  ///digitalWrite(BUZZER_PIN, LOW); // nötig?
+  EasyBuzzer.setPin(BUZZER_PIN);
+  //EasyBuzzer.beep(2000); // 2000 Hz
+  //delay(5000);
+  //EasyBuzzer.stopBeep();
+  EasyBuzzer.singleBeep(
+    2000,	// Frequency in hertz(HZ).
+    5000	// Duration of the beep in milliseconds(ms).
+  );
 }
