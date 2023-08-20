@@ -8,6 +8,7 @@
 #define DCF77_UHR_H
 
 #include <Arduino.h>
+#include <muTimer.h>
 #include <Adafruit_i2c_7seg_LED.h>
 //#include <EasyBuzzer.h>
 #include <dcf77.h> // https://github.com/udoklein/dcf77
@@ -94,12 +95,15 @@ extern Adafruit_7Seg disp3;
 extern alarm_time_t alarm;
 extern alarm_time_t sync;
 extern views viewMode, lastViewMode;
-extern void updateAlarmSettings();
+extern void updateAlarmSettings(void);
 extern OneButton uniButton;
-extern void setupDCF77_Uhr();
-extern void setNormalMode();
-extern void setSleepMode();
+extern void setupDCF77_Uhr(void);
+extern void setNormalMode(void);
+extern void setSleepMode(void);
 extern void setBuzzer(uint8_t x);
+extern muTimer periodTimer;
+extern muTimer buzzerTimer;
+extern void handleBuzzer(void);
 
 #endif
 

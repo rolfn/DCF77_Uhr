@@ -77,6 +77,8 @@ void myPeriod() {
       case VIEW_QTY:
         disp3.setDigit(DIGIT_1, 4);
         disp3.setDigit(DIGIT_2, 7);
+      default:
+        break; 
     }
   }
 
@@ -92,14 +94,14 @@ void myPeriod() {
 
 void loop() {
   uniButton.tick();
-  //EasyBuzzer.update();
-
-  if ((unsigned long)(millis() - time_now) > PERIOD) {
-    time_now = millis();
-    myPeriod();
+  handleBuzzer();
+  
+  if (periodTimer.cycleTrigger(PERIOD)) {
+    // gets called every PERIOD once
+    myPeriod();  
   }
 
-  delay(10);
+  delay(10); // ?
 
   /*
 

@@ -11,6 +11,8 @@ Adafruit_7Seg disp2;
 Adafruit_7Seg disp3;
 OneButton uniButton; 
 views viewMode = VIEW_SEC, lastViewMode = VIEW_UNDEFINED;
+muTimer periodTimer = muTimer();
+muTimer buzzerTimer = muTimer();
 
 alarm_time_t alarm = {
   .hour =   { .val = ALARM_UNDEFINED },
@@ -28,23 +30,27 @@ alarm_time_t sync = {
   .active = false
 };
 
-void setNormalMode() {
-  sync.active = false;
+static bool displaysSleeping = false;
+
+void setNormalMode(void) {
+  sync.active = displaysSleeping = false;
   disp1.normal();
   disp2.normal();
   disp3.normal();
 }
 
-void setSleepMode() {
-  sync.active = true;
+void setSleepMode(void) {
+  sync.active = displaysSleeping = true;
   disp1.sleep();
   disp2.sleep();
   disp3.sleep();
 }
 
 // this function will be called when the button is released within SINGLE_CLICK_TIME.
-void handleSingleClick() {
+void handleSingleClick(void) {
   Serial.println("SINGLE_CLICK_TIME");
+  alarm.active = false;
+  setBuzzer(OFF);
   if (sync.active) {
     // TODO: stop syncing
     setNormalMode();
@@ -62,11 +68,13 @@ void handleSingleClick() {
 // this function will be called several times after PRESS_TIME has expired.
 void handleDuringLongPress(void *btn) {
   unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  if (delta >= LONG_PRESS_TIME && !sync.active) {
+  if (!displaysSleeping && delta >= LONG_PRESS_TIME && !sync.active) {
     Serial.print("Delta Time (ms): "); Serial.println(delta);
     // TODO: start syncing
     Serial.println(">= LONG_PRESS_TIME");
     setSleepMode();
+    alarm.active = true;
+    //setBuzzer(ON);
   }
 }
 
@@ -81,7 +89,7 @@ void handleLongPressStop(void *btn) {
   } 
 }
 
-uint8_t getAlarmMode() {
+uint8_t getAlarmMode(void) {
   /*
     Determines the alarm mode as folows:
     
@@ -127,7 +135,7 @@ uint8_t bcdRead(uint8_t pos) {
   return val;
 }
    
-void updateAlarmSettings() {
+void updateAlarmSettings(void) {
   //alarm.mode = getAlarmMode(); TODO: activate if possible
   if (alarm.mode == ALARM_1) {
     alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
@@ -150,7 +158,25 @@ void setBuzzer(uint8_t x) {
   digitalWrite(BUZZER_PIN, x); 
 }
 
-void setupDCF77_Uhr() {
+void handleBuzzer(void) {
+  if (!alarm.active) return; // TODO: buzzerTimer.cycleResetToOff(); ?
+  switch (buzzerTimer.cycleOnOffTrigger(100, 250)) // on ms, off ms
+  {
+    // state changed from 1->0
+    case 0:
+      setBuzzer(OFF);
+      break;
+    // state changed from 0->1
+    case 1:
+      setBuzzer(ON);
+      break;
+    // no state change, timer is running
+    case 2:
+      break;
+  }
+}
+
+void setupDCF77_Uhr(void) {
   disp1.begin(DISP1_ADR);
   disp2.begin(DISP2_ADR);
   disp3.begin(DISP3_ADR);
