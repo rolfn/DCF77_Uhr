@@ -13,80 +13,75 @@ OneButton uniButton;
 views viewMode = VIEW_SEC, lastViewMode = VIEW_UNDEFINED;
 muTimer periodTimer = muTimer();
 muTimer buzzerTimer = muTimer();
+muTimer snoozeTimer = muTimer();
 
 alarm_time_t alarm = {
   .hour =   { .val = ALARM_UNDEFINED },
   .minute = { .val = ALARM_UNDEFINED }, 
-  .period = 0,
-  .mode = ALARM_DISABLED,
-  .active = false
+  .snoozeStart = 0,
+  .mode = DISABLED,
+  .state = WAITING
 };
 
-alarm_time_t sync = {
-  .hour =   { .val = SYNC_HOUR },
-  .minute = { .val = SYNC_MINUTE },
-  .period = 0, 
-  .mode = ALARM_DISABLED,
-  .active = false
+sync_t sync = {
+  .hour = SYNC_HOUR,
+  .minute = SYNC_MINUTE,
+  .syncing = false, 
 };
 
 static bool displaysSleeping = false;
 
 void setNormalMode(void) {
-  sync.active = displaysSleeping = false;
+  sync.syncing = false;
+  displaysSleeping = false;
   disp1.normal();
   disp2.normal();
   disp3.normal();
 }
 
 void setSleepMode(void) {
-  sync.active = displaysSleeping = true;
+  sync.syncing = true;
+  displaysSleeping = true;
   disp1.sleep();
   disp2.sleep();
   disp3.sleep();
 }
 
-// this function will be called when the button is released within SINGLE_CLICK_TIME.
-void handleSingleClick(void) {
-  Serial.println("SINGLE_CLICK_TIME");
-  alarm.active = false;
-  setBuzzer(OFF);
-  if (sync.active) {
-    // TODO: stop syncing
-    setNormalMode();
+// this function will be called several times after SHORT_PRESS_TIME has expired.
+void handleDuringLongPress(void *btn) {
+  unsigned long delta = ((OneButton *)btn)->getPressedMs();// TODO: simplify
+  if (delta >= SHORT_PRESS_TIME && delta < MEDIUM_PRESS_TIME) {
+    //alarm.state = SNOOZE;
+  } else if (delta >= MEDIUM_PRESS_TIME && delta < LONG_PRESS_TIME) {
+    alarm.state = WAITING; // Should also be effective for LONG_PRESS_TIME
+    setBuzzer(OFF);
   } else {
-    if (alarm.active) {
-      // TODO: Alarm in snooze mode
+    setSleepMode(); // + syncing, sync.syncing = true
+  }
+}
+
+// this function will be called when the key is released after SHORT_PRESS_TIME has expired.
+void handleLongPressStop(void *btn) {
+  unsigned long delta = ((OneButton *)btn)->getPressedMs();
+  if (delta >= SHORT_PRESS_TIME && delta < MEDIUM_PRESS_TIME) {
+    if (sync.syncing) {
+      // TODO: stop syncing
+      setNormalMode();
+    }
+    if (alarm.state == ACTIVE) {
+      alarm.state = SNOOZE;// TODO: Per 5-Minuten-Timer auf ACTIVE setzen
+      setBuzzer(OFF);
     } else {// set next view mode
       if (viewMode == VIEW_SEC) viewMode = VIEW_DATE;
       else if (viewMode == VIEW_DATE) viewMode = VIEW_QTY;
       else viewMode = VIEW_SEC;
     }
-  }
-}
-
-// this function will be called several times after PRESS_TIME has expired.
-void handleDuringLongPress(void *btn) {
-  unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  if (!displaysSleeping && delta >= LONG_PRESS_TIME && !sync.active) {
-    Serial.print("Delta Time (ms): "); Serial.println(delta);
-    // TODO: start syncing
-    Serial.println(">= LONG_PRESS_TIME");
-    setSleepMode();
-    alarm.active = true;
-    //setBuzzer(ON);
-  }
-}
-
-// this function will be called when the key is released after PRESS_TIME has expired.
-void handleLongPressStop(void *btn) {
-  unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  if (delta < LONG_PRESS_TIME) {
-    Serial.print("Delta Time (ms): "); Serial.println(delta);
-    Serial.println("< LONG_PRESS_TIME");
-    // TODO: Alarm deactivate
-    alarm.active = false;
-  } 
+  } else if (delta >= MEDIUM_PRESS_TIME && delta < LONG_PRESS_TIME) {
+    ;
+  } else {
+    alarm.state = ACTIVE; // provisorisch zum Testen
+    buzzerTimer.cycleResetToOff(); // beides einmalig beim Zeit-Alarm-Vergleich
+  }  
 }
 
 uint8_t getAlarmMode(void) {
@@ -119,38 +114,46 @@ uint8_t getAlarmMode(void) {
   int rawADC = analogRead(ALARM_MODE_PIN);
   // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
   if (rawADC < ADC_20_PERCENT)
-    return ALARM_DISABLED;
+    return DISABLED;
   else if (rawADC > ADC_80_PERCENT)
-    return ALARM_2;
+    return TWO;
   else
-    return ALARM_1;
+    return ONE;
 }
 
 uint8_t bcdRead(uint8_t pos) {
   uint8_t val;
-  digitalWrite(pos, LOW); // selecting a specific BCD switch
+  digitalWrite(pos, LOW); // selecting the specific BCD switch
   delayMicroseconds(2); // necessary?
   val = ALARM_BCD_PORT & 0x0f; // mask the 4 high order bits
-  digitalWrite(pos, HIGH); // deselecting a specific BCD switch
+  digitalWrite(pos, HIGH); // deselecting the specific BCD switch
   return val;
 }
    
 void updateAlarmSettings(void) {
   //alarm.mode = getAlarmMode(); TODO: activate if possible
-  if (alarm.mode == ALARM_1) {
+  if (alarm.mode == ONE) {
     alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
     alarm.minute.digit.hi = bcdRead(ALARM1_MINUTE_HI_PIN);
     alarm.hour.digit.lo = bcdRead(ALARM1_HOUR_LO_PIN);
     alarm.hour.digit.hi = bcdRead(ALARM1_HOUR_HI_PIN);    
-  } else if (alarm.mode == ALARM_2) {
+  } else if (alarm.mode == TWO) {
     alarm.minute.digit.lo = bcdRead(ALARM2_MINUTE_LO_PIN);
     alarm.minute.digit.hi = bcdRead(ALARM2_MINUTE_HI_PIN);
     alarm.hour.digit.lo = bcdRead(ALARM2_HOUR_LO_PIN);
     alarm.hour.digit.hi = bcdRead(ALARM2_HOUR_HI_PIN);  
-  } else {// ALARM_DISABLED
+  } else {// DISABLED
     alarm.minute.val = ALARM_UNDEFINED;
     alarm.hour.val = ALARM_UNDEFINED;
   }
+}
+
+void handleSnooze(void) {
+  if (alarm.state == SNOOZE) {
+    // TODO: Test snoozeTimer (delay), if ALARM_SNOOZE_TIME is elapsed 
+    // --> ... alarm.state = ACTIVE; 
+  } 
+  return;
 }
 
 // Turn piezo buzzer on or off
@@ -159,9 +162,10 @@ void setBuzzer(uint8_t x) {
 }
 
 void handleBuzzer(void) {
-  if (!alarm.active) return; // TODO: buzzerTimer.cycleResetToOff(); ?
-  switch (buzzerTimer.cycleOnOffTrigger(100, 250)) // on ms, off ms
-  {
+  if (alarm.state != ACTIVE) {
+    return; 
+  } 
+  switch (buzzerTimer.cycleOnOffTrigger(100, 250)) {// on ms, off ms
     // state changed from 1->0
     case 0:
       setBuzzer(OFF);
@@ -198,9 +202,9 @@ void setupDCF77_Uhr(void) {
     true,           // Button is active LOW
     true            // Enable internal pull-up resistor
   );
-  uniButton.setClickMs(SINGLE_CLICK_TIME);
-  uniButton.setPressMs(PRESS_TIME);
-  uniButton.attachClick(handleSingleClick); // Single Click event
+  ///uniButton.setClickMs(SINGLE_CLICK_TIME);
+  uniButton.setPressMs(SHORT_PRESS_TIME);
+  ///uniButton.attachClick(handleSingleClick); // Single Click event
   uniButton.attachDuringLongPress(handleDuringLongPress,
     &uniButton); // During Long Press events
   uniButton.attachLongPressStop(handleLongPressStop,

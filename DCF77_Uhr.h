@@ -10,7 +10,6 @@
 #include <Arduino.h>
 #include <muTimer.h>
 #include <Adafruit_i2c_7seg_LED.h>
-//#include <EasyBuzzer.h>
 #include <dcf77.h> // https://github.com/udoklein/dcf77
 /*
 http://www.mathertel.de/Arduino/OneButtonLibrary.aspx
@@ -34,7 +33,8 @@ enum views {
   VIEW_QTY   // _____47___
 };
 
-enum alarmModes { ALARM_DISABLED, ALARM_1, ALARM_2 };
+enum alarmModes  { DISABLED, ONE, TWO };
+enum alarmStates { WAITING, SNOOZE, ACTIVE };
 
 #define DCF77_MONITOR_LED 12 // PB4
 //#define DCF77_MONITOR_LED LED_BUILTIN
@@ -44,10 +44,16 @@ enum alarmModes { ALARM_DISABLED, ALARM_1, ALARM_2 };
 typedef struct {
   BCD::bcd_t hour;   // 0..23
   BCD::bcd_t minute; // 0..59
-  unsigned long period; // useful?
+  unsigned long snoozeStart; 
   alarmModes mode;
-  bool active;
+  alarmStates state;
 } alarm_time_t;
+
+typedef struct {
+  uint8_t hour;
+  uint8_t minute;
+  bool syncing;
+} sync_t;
 
 #define ALARM_BCD1 14 // PC0
 #define ALARM_BCD2 15 // PC1
@@ -70,6 +76,7 @@ typedef struct {
 #define BUZZER_PIN 11          // PB3
 
 #define ALARM_UNDEFINED 0xff
+#define ALARM_SNOOZE_TIME 300000 // = 5 minutes
 
 #define SYNC_HOUR 2
 #define SYNC_MINUTE 30
@@ -82,9 +89,10 @@ typedef struct {
 #define DISP2_ADR 0x01 // i2c address: 0x71
 #define DISP3_ADR 0x02 // i2c address: 0x72
 
-#define SINGLE_CLICK_TIME 200 // ms
-#define PRESS_TIME 1000       // ms
-#define LONG_PRESS_TIME 3000  // ms
+#define SINGLE_CLICK_TIME 200 // ms 200
+#define SHORT_PRESS_TIME 50
+#define MEDIUM_PRESS_TIME 1000       // ms 1000
+#define LONG_PRESS_TIME 3000  // ms 3000
 
 #define ON HIGH
 #define OFF LOW
@@ -93,7 +101,7 @@ extern Adafruit_7Seg disp1;
 extern Adafruit_7Seg disp2;
 extern Adafruit_7Seg disp3;
 extern alarm_time_t alarm;
-extern alarm_time_t sync;
+extern sync_t sync;
 extern views viewMode, lastViewMode;
 extern void updateAlarmSettings(void);
 extern OneButton uniButton;
@@ -103,7 +111,9 @@ extern void setSleepMode(void);
 extern void setBuzzer(uint8_t x);
 extern muTimer periodTimer;
 extern muTimer buzzerTimer;
+extern muTimer snoozeTimer;
 extern void handleBuzzer(void);
+extern void handleSnooze(void);
 
 #endif
 

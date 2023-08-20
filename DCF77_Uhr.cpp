@@ -23,8 +23,9 @@ void setup() {
 unsigned long time_now = 0;
 uint8_t lastLevel = LOW;
 
-void myPeriod() {
+void myPeriod() {// TODO: move to DCF77_utils.cpp
   updateAlarmSettings();
+  Serial.print("alarm.state: "); Serial.println(alarm.state); 
   digitalWrite(DCF77_MONITOR_LED, lastLevel);
   if (lastLevel == LOW) {
     lastLevel = HIGH;
@@ -95,7 +96,8 @@ void myPeriod() {
 void loop() {
   uniButton.tick();
   handleBuzzer();
-  
+  handleSnooze();
+
   if (periodTimer.cycleTrigger(PERIOD)) {
     // gets called every PERIOD once
     myPeriod();  
