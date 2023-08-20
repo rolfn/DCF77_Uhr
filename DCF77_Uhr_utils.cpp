@@ -54,9 +54,12 @@ void handleDuringLongPress(void *btn) {
     //alarm.state = SNOOZE;
   } else if (delta >= MEDIUM_PRESS_TIME && delta < LONG_PRESS_TIME) {
     alarm.state = WAITING; // Should also be effective for LONG_PRESS_TIME
-    setBuzzer(OFF);
-  } else {
+    setBuzzer(OFF); // TODO: akustische Rücxkmeldung?!
+  } else if (!sync.syncing) {// (delta >= LONG_PRESS_TIME)
     setSleepMode(); // + syncing, sync.syncing = true
+    alarm.state = ACTIVE; // provisorisch zum Testen
+    buzzerTimer.cycleResetToOff(); // Suppresses noise
+    // beides später einmalig beim Zeit-Alarm-Vergleich
   }
 }
 
@@ -70,18 +73,13 @@ void handleLongPressStop(void *btn) {
     }
     if (alarm.state == ACTIVE) {
       alarm.state = SNOOZE;// TODO: Per 5-Minuten-Timer auf ACTIVE setzen
-      setBuzzer(OFF);
-    } else {// set next view mode
+      setBuzzer(OFF); // TODO: akustische Rücxkmeldung?!
+    } else {// Set next view mode
       if (viewMode == VIEW_SEC) viewMode = VIEW_DATE;
       else if (viewMode == VIEW_DATE) viewMode = VIEW_QTY;
       else viewMode = VIEW_SEC;
     }
-  } else if (delta >= MEDIUM_PRESS_TIME && delta < LONG_PRESS_TIME) {
-    ;
-  } else {
-    alarm.state = ACTIVE; // provisorisch zum Testen
-    buzzerTimer.cycleResetToOff(); // beides einmalig beim Zeit-Alarm-Vergleich
-  }  
+  } 
 }
 
 uint8_t getAlarmMode(void) {
@@ -165,7 +163,7 @@ void handleBuzzer(void) {
   if (alarm.state != ACTIVE) {
     return; 
   } 
-  switch (buzzerTimer.cycleOnOffTrigger(100, 250)) {// on ms, off ms
+  switch (buzzerTimer.cycleOnOffTrigger(150, 300)) {// on ms, off ms
     // state changed from 1->0
     case 0:
       setBuzzer(OFF);
