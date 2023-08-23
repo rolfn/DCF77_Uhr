@@ -28,19 +28,11 @@ void longPeriod() {  // TODO: move to DCF77_utils.cpp
   uint8_t len;
   uint8_t i;
   updateAlarmSettings();
-  // checkAlarm();
-  ///Serial.print("alarm.state: ");
-  ///Serial.println(alarm.state);
+  handleSnooze();
+  ///Serial.print("alarm.state: "); Serial.println(alarm.state);
+  Serial.print("alarm.mode: "); Serial.println(alarm.mode);
   digitalWrite(DCF77_MONITOR_LED, lastLevel);
-  if (lastLevel == LOW) {
-    lastLevel = HIGH;
-    disp1.clearPoint(POINT_LOWER_LEFT);
-    disp1.setPoint(POINT_UPPER_LEFT);
-  } else {
-    lastLevel = LOW;
-    disp1.clearPoint(POINT_UPPER_LEFT);
-    disp1.setPoint(POINT_LOWER_LEFT);
-  }
+  if (lastLevel == LOW) lastLevel = HIGH; else lastLevel = LOW;
 
   if (x_second == 59) {
     x_second = 0;

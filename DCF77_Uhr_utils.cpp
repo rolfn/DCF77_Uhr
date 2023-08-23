@@ -1,8 +1,8 @@
 /*
  * DCF77_Uhr_utils.cpp
- * 
+ *
  * See: https://github.com/rolfn/DCF77_Uhr
- * 
+ *
  * Copyright:  Rolf Niepraschk
  * License: MIT
  *
@@ -15,24 +15,23 @@ Adafruit_7Seg disp2;
 Adafruit_7Seg disp3;
 OneButton uniButton;
 views viewMode = VIEW_SEC, lastViewMode = VIEW_UNDEFINED;
+alarmModes lastAlarmMode = UNDEFINED;
+
 muTimer periodTimer = muTimer();
 muTimer buzzerTimer = muTimer();
 muTimer snoozeTimer = muTimer();
 
-alarm_time_t alarm = {
-  .hour = {.val = ALARM_UNDEFINED},
-  .minute = {.val = ALARM_UNDEFINED},
-  .snoozeStart = 0,
-  .mode = DISABLED,
-  .state = WAITING
-};
+alarm_time_t alarm = {.hour = {.val = ALARM_UNDEFINED},
+                      .minute = {.val = ALARM_UNDEFINED},
+                      .snoozeStart = 0,
+                      .mode = ONE,
+                      .state = WAITING};
 
-sync_t sync = {
-  .hour = SYNC_HOUR, // nötig?
-  .minute = SYNC_MINUTE,// nötig?
-  .syncing = false,
-  .quality = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,49,43,48,50}
-};
+sync_t sync = {.hour = SYNC_HOUR,      // nötig?
+               .minute = SYNC_MINUTE,  // nötig?
+               .syncing = false,
+               .quality = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,  0,  0,
+                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 43, 48, 50}};
 
 void setNormalMode(void) {
   disp1.normal();
@@ -74,18 +73,15 @@ void handleLongPressStop(void *btn) {
     if (alarm.state == ACTIVE) {
       alarm.state = SNOOZE;  // TODO: Per 5-Minuten-Timer auf ACTIVE setzen
       alarm.snoozeStart = millis();
-      setBuzzer(OFF);        // TODO: akustische Rückmeldung?!
-    } else { // Set next view mode
+      setBuzzer(OFF);  // TODO: akustische Rückmeldung?!
+    } else {           // Set next view mode
       if (viewMode == VIEW_SEC) {
         viewMode = VIEW_DATE;
-      }
-      else if (viewMode == VIEW_DATE) {
+      } else if (viewMode == VIEW_DATE) {
         viewMode = VIEW_QTY;
-      }
-      else if (viewMode == VIEW_QTY) {
+      } else if (viewMode == VIEW_QTY) {
         viewMode = VIEW_VERSION;
-      }
-      else {
+      } else {
         viewMode = VIEW_SEC;
       }
     }
@@ -139,27 +135,37 @@ uint8_t bcdRead(uint8_t pos) {
 }
 
 void updateAlarmSettings(void) {
-  // alarm.mode = getAlarmMode(); TODO: activate if possible
-  if (alarm.mode == ONE) {
-    alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
-    alarm.minute.digit.hi = bcdRead(ALARM1_MINUTE_HI_PIN);
-    alarm.hour.digit.lo = bcdRead(ALARM1_HOUR_LO_PIN);
-    alarm.hour.digit.hi = bcdRead(ALARM1_HOUR_HI_PIN);
-  } else if (alarm.mode == TWO) {
-    alarm.minute.digit.lo = bcdRead(ALARM2_MINUTE_LO_PIN);
-    alarm.minute.digit.hi = bcdRead(ALARM2_MINUTE_HI_PIN);
-    alarm.hour.digit.lo = bcdRead(ALARM2_HOUR_LO_PIN);
-    alarm.hour.digit.hi = bcdRead(ALARM2_HOUR_HI_PIN);
-  } else {  // DISABLED
-    alarm.minute.val = ALARM_UNDEFINED;
-    alarm.hour.val = ALARM_UNDEFINED;
+  if (alarm.mode != lastAlarmMode) {
+    lastAlarmMode = alarm.mode;
+    if (alarm.mode == ONE) {
+      disp1.clearPoint(POINT_LOWER_LEFT);
+      disp1.setPoint(POINT_UPPER_LEFT);
+      alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
+      alarm.minute.digit.hi = bcdRead(ALARM1_MINUTE_HI_PIN);
+      alarm.hour.digit.lo = bcdRead(ALARM1_HOUR_LO_PIN);
+      alarm.hour.digit.hi = bcdRead(ALARM1_HOUR_HI_PIN);
+    } else if (alarm.mode == TWO) {
+      disp1.clearPoint(POINT_UPPER_LEFT);
+      disp1.setPoint(POINT_LOWER_LEFT);
+      alarm.minute.digit.lo = bcdRead(ALARM2_MINUTE_LO_PIN);
+      alarm.minute.digit.hi = bcdRead(ALARM2_MINUTE_HI_PIN);
+      alarm.hour.digit.lo = bcdRead(ALARM2_HOUR_LO_PIN);
+      alarm.hour.digit.hi = bcdRead(ALARM2_HOUR_HI_PIN);
+    } else {  // DISABLED
+      disp1.clearPoint(POINT_UPPER_LEFT);
+      disp1.clearPoint(POINT_LOWER_LEFT);
+      alarm.minute.val = ALARM_UNDEFINED;
+      alarm.hour.val = ALARM_UNDEFINED;
+    }
   }
 }
 
 void handleSnooze(void) {
   if (alarm.state == SNOOZE) {
-    // TODO: Test snoozeTimer (delay), if ALARM_SNOOZE_MAX is elapsed
-    // --> ... alarm.state = ACTIVE;
+    if ((unsigned long)(millis() - alarm.snoozeStart) >= ALARM_SNOOZE_MAX) {
+      // activate the alarm after the end of the snooze time
+      alarm.state = ACTIVE;
+    }
   }
   return;
 }
@@ -172,8 +178,8 @@ void handleBuzzer(void) {
     return;
   }
   switch (buzzerTimer.cycleOnOffTrigger(BUZZER_ON_TIME, BUZZER_OFF_TIME)) {
-  // TODO: #define
-    // state changed from 1->0
+      // TODO: #define
+      // state changed from 1->0
     case 0:
       setBuzzer(OFF);
       break;

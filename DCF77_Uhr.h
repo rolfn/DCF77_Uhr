@@ -38,7 +38,7 @@ enum views {
   VIEW_VERSION // 01.03.15
 };
 
-enum alarmModes { DISABLED, ONE, TWO };
+enum alarmModes { UNDEFINED, ONE, TWO, DISABLED };
 enum alarmStates { WAITING, SNOOZE, ACTIVE };
 
 #define DCF77_MONITOR_LED 12  // PB4
@@ -61,31 +61,32 @@ typedef struct {
   uint8_t quality[32];
 } sync_t;
 
-#define ALARM_BCD1 14         // PC0
-#define ALARM_BCD2 15         // PC1
-#define ALARM_BCD4 16         // PC2
-#define ALARM_BCD8 17         // PC3
-#define ALARM_BCD_PORT PORTC  // Pins 14, 15, 16, 17
+#define ALARM_BCD1 14          // PC0
+#define ALARM_BCD2 15          // PC1
+#define ALARM_BCD4 16          // PC2
+#define ALARM_BCD8 17          // PC3
+#define ALARM_BCD_PORT PORTC   // Pins 14, 15, 16, 17
 
-#define ALARM1_HOUR_HI_PIN 2    // PD2
-#define ALARM1_HOUR_LO_PIN 3    // PD3
-#define ALARM1_MINUTE_HI_PIN 4  // PD4
-#define ALARM1_MINUTE_LO_PIN 5  // PD5
+#define ALARM1_HOUR_HI_PIN 2   // PD2
+#define ALARM1_HOUR_LO_PIN 3   // PD3
+#define ALARM1_MINUTE_HI_PIN 4 // PD4
+#define ALARM1_MINUTE_LO_PIN 5 // PD5
 
-#define ALARM2_HOUR_HI_PIN 6    // PD6
-#define ALARM2_HOUR_LO_PIN 7    // PD7
-#define ALARM2_MINUTE_HI_PIN 8  // PB0
-#define ALARM2_MINUTE_LO_PIN 9  // PB1
+#define ALARM2_HOUR_HI_PIN 6   // PD6
+#define ALARM2_HOUR_LO_PIN 7   // PD7
+#define ALARM2_MINUTE_HI_PIN 8 // PB0
+#define ALARM2_MINUTE_LO_PIN 9 // PB1
 
 #define ALARM_MODE_PIN A6
-#define UNI_BUTTON_PIN 10  // PB2
-#define BUZZER_PIN 11      // PB3
+#define UNI_BUTTON_PIN 10      // PB2
+#define BUZZER_PIN 11          // PB3
 
 #define BUZZER_ON_TIME  250 // ms
 #define BUZZER_OFF_TIME 150 // ms
 
 #define ALARM_UNDEFINED 0xff
-#define ALARM_SNOOZE_MAX 300000  // 300000 = 5 min
+//#define ALARM_SNOOZE_MAX 300000L  // 300000 = 5 min
+#define ALARM_SNOOZE_MAX 60000L  // 60000 = 1 min
 
 #define SYNC_HOUR 2
 #define SYNC_MINUTE 30
@@ -99,9 +100,9 @@ typedef struct {
 #define DISP2_ADR 0x01  // i2c address: 0x71
 #define DISP3_ADR 0x02  // i2c address: 0x72
 
-#define SHORT_PRESS_TIME 50     // ms
-#define MEDIUM_PRESS_TIME 1000  // ms
-#define LONG_PRESS_TIME 3000    // ms
+#define SHORT_PRESS_TIME    50L // ms
+#define MEDIUM_PRESS_TIME 1000L // ms
+#define LONG_PRESS_TIME   3000L // ms
 
 #define ON HIGH
 #define OFF LOW
@@ -112,6 +113,7 @@ extern Adafruit_7Seg disp3;
 extern alarm_time_t alarm;
 extern sync_t sync;
 extern views viewMode, lastViewMode;
+extern alarmModes lastAlarmMode;
 extern void updateAlarmSettings(void);
 extern OneButton uniButton;
 extern void setupDCF77_Uhr(void);
