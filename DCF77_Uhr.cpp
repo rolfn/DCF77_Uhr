@@ -1,12 +1,16 @@
-/**
+/*
  * DCF77_Uhr.cpp
- * Copyright:  Rolf Niepraschk <Rolf.Niepraschk AT gmx.de>
- * https://github.com/rolfn/DCF77_Uhr
+ * 
+ * A radio clock (DCF77) with two alarm times and date display.
+ * See: https://github.com/rolfn/DCF77_Uhr
+ * 
+ * Copyright:  Rolf Niepraschk
+ * License: MIT
+ *
  */
 
 #include "DCF77_Uhr.h"
 
-uint8_t xxx;
 uint8_t x_second = 0, x_minute = 0, x_hour = 0;
 
 void setup() {
@@ -14,18 +18,19 @@ void setup() {
   Serial.begin(9600);
   while (!Serial)
     ;
-  // Serial.println(__FILE__);
-  //
   setupDCF77_Uhr();
 }
 
 #define PERIOD 1000
-unsigned long time_now = 0;
 uint8_t lastLevel = LOW;
 
-void myPeriod() {// TODO: move to DCF77_utils.cpp
+void longPeriod() {  // TODO: move to DCF77_utils.cpp
+  uint8_t len;
+  uint8_t i;
   updateAlarmSettings();
-  Serial.print("alarm.state: "); Serial.println(alarm.state); 
+  // checkAlarm();
+  ///Serial.print("alarm.state: ");
+  ///Serial.println(alarm.state);
   digitalWrite(DCF77_MONITOR_LED, lastLevel);
   if (lastLevel == LOW) {
     lastLevel = HIGH;
@@ -63,7 +68,7 @@ void myPeriod() {// TODO: move to DCF77_utils.cpp
         disp2.setDigit(DIGIT_2, 5, true);
         disp2.setDigit(DIGIT_3, 0);
         disp2.setDigit(DIGIT_4, 8, true);
-        disp3.setPoint(COLON);
+        //disp3.setPoint(COLON);
         break;
       case VIEW_DATE:
         disp2.setDigit(DIGIT_1, 1);
@@ -76,10 +81,28 @@ void myPeriod() {// TODO: move to DCF77_utils.cpp
         disp3.setDigit(DIGIT_4, 3);
         break;
       case VIEW_QTY:
-        disp3.setDigit(DIGIT_1, 4);
-        disp3.setDigit(DIGIT_2, 7);
+        len = sizeof(sync.quality) / sizeof(sync.quality[0]);
+        i = len - 4;
+        disp2.setDigit(DIGIT_1, sync.quality[i] / 10);
+        disp2.setDigit(DIGIT_2, sync.quality[i++] % 10, true);
+        disp2.setDigit(DIGIT_3, sync.quality[i] / 10);
+        disp2.setDigit(DIGIT_4, sync.quality[i++] % 10, true);
+        disp3.setDigit(DIGIT_1, sync.quality[i] / 10);
+        disp3.setDigit(DIGIT_2, sync.quality[i++] % 10, true);
+        disp3.setDigit(DIGIT_3, sync.quality[i] / 10);
+        disp3.setDigit(DIGIT_4, sync.quality[i] % 10);
+        break;
+      case VIEW_VERSION:
+        //Serial.print("viewMode: "); Serial.println(viewMode);
+        disp2.setDigit(DIGIT_1, DCF77_UHR_MAJOR_VERSION / 10);
+        disp2.setDigit(DIGIT_2, DCF77_UHR_MAJOR_VERSION % 10, true);
+        disp2.setDigit(DIGIT_3, DCF77_UHR_MINOR_VERSION / 10);
+        disp2.setDigit(DIGIT_4, DCF77_UHR_MINOR_VERSION % 10, true);
+        disp3.setDigit(DIGIT_1, DCF77_UHR_PATCH_VERSION / 10);
+        disp3.setDigit(DIGIT_2, DCF77_UHR_PATCH_VERSION % 10);
+        break;
       default:
-        break; 
+        break;
     }
   }
 
@@ -91,6 +114,10 @@ void myPeriod() {// TODO: move to DCF77_utils.cpp
     disp3.setDigit(DIGIT_3, x_second / 10);
     disp3.setDigit(DIGIT_4, x_second % 10);
   }
+  
+  disp1.sendLed();
+  disp2.sendLed();
+  disp3.sendLed();
 }
 
 void loop() {
@@ -98,12 +125,9 @@ void loop() {
   handleBuzzer();
   handleSnooze();
 
-  if (periodTimer.cycleTrigger(PERIOD)) {
-    // gets called every PERIOD once
-    myPeriod();  
+  if (periodTimer.cycleTrigger(PERIOD)) {  // Gets called every PERIOD once
+    longPeriod();
   }
-
-  delay(10); // ?
 
   /*
 
