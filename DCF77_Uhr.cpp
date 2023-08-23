@@ -22,14 +22,12 @@ void setup() {
 }
 
 #define PERIOD 1000
-uint8_t lastLevel = LOW;
 
-void longPeriod() {  // TODO: move to DCF77_utils.cpp
+void dummyUpdateDisplay() {
   uint8_t len;
   uint8_t i;
-  updateAlarmSettings();
-  handleSnooze();
-  ///Serial.print("alarm.state: "); Serial.println(alarm.state);
+  static uint8_t lastLevel = LOW;
+  Serial.print("alarm.state: "); Serial.println(alarm.state);
   Serial.print("alarm.mode: "); Serial.println(alarm.mode);
   digitalWrite(DCF77_MONITOR_LED, lastLevel);
   if (lastLevel == LOW) lastLevel = HIGH; else lastLevel = LOW;
@@ -113,11 +111,11 @@ void longPeriod() {  // TODO: move to DCF77_utils.cpp
 }
 
 void loop() {
-  uniButton.tick();
-  handleBuzzer();
-  handleSnooze();
+  uniButton.tick();    //call often
+  handleBuzzerCycle(); //call often
 
-  if (periodTimer.cycleTrigger(PERIOD)) {  // Gets called every PERIOD once
+  if (periodTimer.cycleTrigger(PERIOD)) { // Gets called every PERIOD once
+    dummyUpdateDisplay();
     longPeriod();
   }
 

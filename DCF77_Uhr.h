@@ -102,7 +102,7 @@ typedef struct {
 
 #define SHORT_PRESS_TIME    50L // ms
 #define MEDIUM_PRESS_TIME 1000L // ms
-#define LONG_PRESS_TIME   3000L // ms
+#define LONG_PRESS_TIME   3500L // ms
 
 #define ON HIGH
 #define OFF LOW
@@ -114,6 +114,7 @@ extern alarm_time_t alarm;
 extern sync_t sync;
 extern views viewMode, lastViewMode;
 extern alarmModes lastAlarmMode;
+extern void longPeriod(void);
 extern void updateAlarmSettings(void);
 extern OneButton uniButton;
 extern void setupDCF77_Uhr(void);
@@ -123,7 +124,7 @@ extern void setBuzzer(uint8_t x);
 extern muTimer periodTimer;
 extern muTimer buzzerTimer;
 extern muTimer snoozeTimer;
-extern void handleBuzzer(void);
+extern void handleBuzzerCycle(void);
 extern void handleSnooze(void);
 
 #endif

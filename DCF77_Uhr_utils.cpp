@@ -135,6 +135,7 @@ uint8_t bcdRead(uint8_t pos) {
 }
 
 void updateAlarmSettings(void) {
+  alarm.mode = getAlarmMode();
   if (alarm.mode != lastAlarmMode) {
     lastAlarmMode = alarm.mode;
     if (alarm.mode == ONE) {
@@ -173,13 +174,12 @@ void handleSnooze(void) {
 // Turn piezo buzzer on or off
 void setBuzzer(uint8_t x) { digitalWrite(BUZZER_PIN, x); }
 
-void handleBuzzer(void) {
+void handleBuzzerCycle(void) {
   if (alarm.state != ACTIVE) {
     return;
   }
   switch (buzzerTimer.cycleOnOffTrigger(BUZZER_ON_TIME, BUZZER_OFF_TIME)) {
-      // TODO: #define
-      // state changed from 1->0
+    // state changed from 1->0
     case 0:
       setBuzzer(OFF);
       break;
@@ -191,6 +191,12 @@ void handleBuzzer(void) {
     case 2:
       break;
   }
+}
+
+void longPeriod(void) {
+  updateAlarmSettings();
+  
+  handleSnooze();
 }
 
 void setupDCF77_Uhr(void) {
