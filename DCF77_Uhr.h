@@ -49,8 +49,15 @@ enum alarmStates { WAITING, SNOOZE, ACTIVE };
 #define DCF77_INVERTED_SAMPLES 1
 
 typedef struct {
-  BCD::bcd_t hour;    // 0..23
-  BCD::bcd_t minute;  // 0..59
+  bool invalid;
+  uint8_t val;
+  uint8_t hi; // nötig?
+  uint8_t lo; // nötig?
+} dec_t;
+
+typedef struct {
+  dec_t hour;    // 0..23
+  dec_t minute;  // 0..59
   unsigned long snoozeStart;
   alarmModes mode;
   alarmStates state;

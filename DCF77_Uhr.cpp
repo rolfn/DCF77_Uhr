@@ -24,7 +24,6 @@ void setup() {
 #define PERIOD 1000
 
 void dummyUpdateDisplay() {
-  uint8_t len;
   uint8_t i;
   static uint8_t lastLevel = LOW;
   //Serial.print("alarm.state: "); Serial.println(alarm.state);
@@ -102,7 +101,6 @@ void dummyUpdateDisplay() {
     disp3.setDigit(DIGIT_3, x_second / 10);
     disp3.setDigit(DIGIT_4, x_second % 10);
   }
-  
   refreshDisplays();
 }
 

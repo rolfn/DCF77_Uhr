@@ -21,8 +21,8 @@ alarmModes lastAlarmMode = UNDEFINED;
 muTimer periodTimer = muTimer();
 muTimer buzzerTimer = muTimer();
 
-alarm_time_t alarm = {.hour = {.val = ALARM_VAL_UNDEF},
-                      .minute = {.val = ALARM_VAL_UNDEF},
+alarm_time_t alarm = {.hour = {.invalid = true},
+                      .minute = {.invalid = true},
                       .snoozeStart = 0,
                       .mode = ONE,
                       .state = WAITING};
@@ -51,16 +51,10 @@ void refreshDisplays(void) {
   disp3.sendLed();
 }
 
-uint8_t BCDselectors[] = { 
-  ALARM1_HOUR_HI_PIN, 
-  ALARM1_HOUR_LO_PIN, 
-  ALARM1_MINUTE_HI_PIN, 
-  ALARM1_MINUTE_LO_PIN,  
-  ALARM2_HOUR_HI_PIN, 
-  ALARM2_HOUR_LO_PIN, 
-  ALARM2_MINUTE_HI_PIN, 
-  ALARM2_MINUTE_LO_PIN
- };
+uint8_t BCDselectors[] = {ALARM1_HOUR_HI_PIN,   ALARM1_HOUR_LO_PIN,
+                          ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN,
+                          ALARM2_HOUR_HI_PIN,   ALARM2_HOUR_LO_PIN,
+                          ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN};
 
 // this function will be called several times after SHORT_PRESS_TIME has
 // expired.
@@ -72,7 +66,7 @@ void detectingPress(void *btn) {
       sync.syncing = false;
       setNormalMode();
     }
-    setBuzzer(OFF);         // TODO: akustische Rückmeldung?!
+    setBuzzer(OFF);  // TODO: akustische Rückmeldung?!
   } else if (!sync.syncing && delta >= LONG_PRESS_TIME) {
     sync.syncing = true;
     setSleepMode();                 // + syncing, sync.syncing = true
@@ -92,7 +86,7 @@ void detectingPressStop(void *btn) {
       setNormalMode();
     }
     if (alarm.state == ACTIVE) {
-      alarm.state = SNOOZE; 
+      alarm.state = SNOOZE;
       // Switches back to ACTIVE after ALARM_SNOOZE_MAX has elapsed
       alarm.snoozeStart = millis();
       setBuzzer(OFF);  // TODO: akustische Rückmeldung?!
@@ -136,25 +130,60 @@ alarmModes getAlarmMode(void) {
   */
   int rawADC = analogRead(ALARM_MODE_PIN);
   // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
-  if (rawADC < ADC_20_PERCENT) // about GND
+  if (rawADC < ADC_20_PERCENT)  // about GND
     return DISABLED;
   else if (rawADC > ADC_80_PERCENT)
-    return TWO;                // about VCC
+    return TWO;  // about VCC
   else
-    return ONE;                // about VCC / 2
+    return ONE;  // about VCC / 2
 }
 
 uint8_t bcdRead(uint8_t pos) {
   uint8_t val;
-  digitalWrite(pos, LOW);            // Selecting the specific BCD switch
-  delayMicroseconds(10);             // necessary?
+  digitalWrite(pos, LOW);  // Selecting the specific BCD switch
+  delayMicroseconds(10);   // necessary?
   // reading the whole port and mask the 4 high order bits
-  val = digitalPinToPort(ALARM_BCD1_PIN) & 0b00001111; 
-  digitalWrite(pos, HIGH);           // Deselecting the specific BCD switch
+  val = digitalPinToPort(ALARM_BCD1_PIN) & 0b00001111;
+  digitalWrite(pos, HIGH);  // Deselecting the specific BCD switch
   return val;
 }
 
+dec_t getHour(uint8_t hiPos, uint8_t loPos) {
+  dec_t x;
+  x.hi = bcdRead(hiPos);
+  x.lo = bcdRead(loPos);
+  x.val = x.hi * 10 + x.lo;
+  // === dummy ===
+  if (hiPos == ALARM1_HOUR_HI_PIN) {
+    x.val = 7;  // 7:32
+    x.hi = 0;
+    x.lo = 7;
+  } else {
+    x.val = 9;  // 9:32
+    x.hi = 0;
+    x.lo = 9;
+  }
+  // =============
+  x.invalid = x.val > 23;
+  return x;
+}
+
+dec_t getMinute(uint8_t hiPos, uint8_t loPos) {
+  dec_t x;
+  x.hi = bcdRead(hiPos);
+  x.lo = bcdRead(loPos);
+  x.val = x.hi * 10 + x.lo;
+  // === dummy ===
+  x.val = 32;
+  x.hi = 3;
+  x.lo = 2;
+  // =============
+  x.invalid = x.val > 59;
+  return x;
+}
+
 void updateAlarmSettings(void) {
+  bool invalid = false;
   alarm.mode = getAlarmMode();
   if (alarm.mode != lastAlarmMode) {
     lastAlarmMode = alarm.mode;
@@ -162,22 +191,34 @@ void updateAlarmSettings(void) {
     if (alarm.mode == ONE) {
       disp1.clearPoint(POINT_LOWER_LEFT);
       disp1.setPoint(POINT_UPPER_LEFT);
-      alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
-      alarm.minute.digit.hi = bcdRead(ALARM1_MINUTE_HI_PIN);
-      alarm.hour.digit.lo   = bcdRead(ALARM1_HOUR_LO_PIN);
-      alarm.hour.digit.hi   = bcdRead(ALARM1_HOUR_HI_PIN);
+      alarm.minute = getMinute(ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN);
+      invalid |= alarm.minute.invalid;
+      alarm.hour = getHour(ALARM1_HOUR_HI_PIN, ALARM1_HOUR_LO_PIN);
+      invalid |= alarm.hour.invalid;
+      Serial.print("ALARM 1: ");
+      Serial.print(alarm.hour.val);
+      Serial.print(":");
+      Serial.println(alarm.minute.val);
     } else if (alarm.mode == TWO) {
       disp1.clearPoint(POINT_UPPER_LEFT);
       disp1.setPoint(POINT_LOWER_LEFT);
-      alarm.minute.digit.lo = bcdRead(ALARM2_MINUTE_LO_PIN);
-      alarm.minute.digit.hi = bcdRead(ALARM2_MINUTE_HI_PIN);
-      alarm.hour.digit.lo   = bcdRead(ALARM2_HOUR_LO_PIN);
-      alarm.hour.digit.hi   = bcdRead(ALARM2_HOUR_HI_PIN);
-    } else { // DISABLED
-      disp1.clearPoint(POINT_UPPER_LEFT);
-      disp1.clearPoint(POINT_LOWER_LEFT);
+      alarm.minute = getMinute(ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN);
+      invalid |= alarm.minute.invalid;
+      alarm.hour = getHour(ALARM2_HOUR_HI_PIN, ALARM2_HOUR_LO_PIN);
+      invalid |= alarm.hour.invalid;
+      Serial.print("ALARM 2: ");
+      Serial.print(alarm.hour.val);
+      Serial.print(":");
+      Serial.println(alarm.minute.val);
+    } else {  // DISABLED
+      invalid = true;
       alarm.minute.val = ALARM_VAL_UNDEF;
       alarm.hour.val = ALARM_VAL_UNDEF;
+      Serial.println("ALARM: DISABLED");
+    }
+    if (invalid) {
+      disp1.clearPoint(POINT_UPPER_LEFT);
+      disp1.clearPoint(POINT_LOWER_LEFT);
     }
     refreshDisplays();
   }
@@ -234,28 +275,29 @@ void setupDCF77_Uhr(void) {
   pinMode(ALARM_BCD8_PIN, INPUT_PULLUP);
 
   /*
-  DDRD  |= B11111100; // sets PD2..PD7 as output  
+  DDRD  |= B11111100; // sets PD2..PD7 as output
   PORTD |= B11111100; // sets PD2..PD7 to a high level
-  DDRB  |= B00000011; // sets PB0..PB1 as output 
+  DDRB  |= B00000011; // sets PB0..PB1 as output
   PORTB |= B00000011; // sets PB0..PB1 to a high level
   */
-  // sets all BCD switch selection pins as output and level to high (no selection)
+  // sets all BCD switch selection pins as output and level to high (no
+  // selection)
   for (uint8_t i = 0; i < ARRAYSIZE(BCDselectors); i++) {
     pinMode(BCDselectors[i], OUTPUT);
     digitalWrite(BCDselectors[i], HIGH);
   }
 
-  pinMode(DCF77_MONITOR_LED, OUTPUT);      // nötig?
-  pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP); // nötig?
-  uniButton = OneButton(UNI_BUTTON_PIN, // Input pin for the button
-                        true,           // Button is active LOW
-                        true            // Enable internal pull-up resistor
+  pinMode(DCF77_MONITOR_LED, OUTPUT);       // nötig?
+  pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
+  uniButton = OneButton(UNI_BUTTON_PIN,     // Input pin for the button
+                        true,               // Button is active LOW
+                        true                // Enable internal pull-up resistor
   );
   uniButton.setPressMs(SHORT_PRESS_TIME);
   uniButton.attachDuringLongPress(detectingPress,
-                                &uniButton); // During Long Press events
+                                  &uniButton);  // During Long Press events
   uniButton.attachLongPressStop(detectingPressStop,
-                                &uniButton); // Long Press Stop event
+                                &uniButton);  // Long Press Stop event
   pinMode(BUZZER_PIN, OUTPUT);
   setBuzzer(ON);
   delay(100);
