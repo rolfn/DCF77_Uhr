@@ -45,12 +45,33 @@ void setSleepMode(void) {
   disp3.sleep();
 }
 
+void refreshDisplays(void) {
+  disp1.sendLed();
+  disp2.sendLed();
+  disp3.sendLed();
+}
+
+uint8_t BCDselectors[] = { 
+  ALARM1_HOUR_HI_PIN, 
+  ALARM1_HOUR_LO_PIN, 
+  ALARM1_MINUTE_HI_PIN, 
+  ALARM1_MINUTE_LO_PIN,  
+  ALARM2_HOUR_HI_PIN, 
+  ALARM2_HOUR_LO_PIN, 
+  ALARM2_MINUTE_HI_PIN, 
+  ALARM2_MINUTE_LO_PIN
+ };
+
 // this function will be called several times after SHORT_PRESS_TIME has
 // expired.
 void detectingPress(void *btn) {
   unsigned long delta = ((OneButton *)btn)->getPressedMs();
   if (delta >= MEDIUM_PRESS_TIME && delta < LONG_PRESS_TIME) {
     alarm.state = WAITING;  // Should also be effective for >=LONG_PRESS_TIME
+    if (sync.syncing) {
+      sync.syncing = false;
+      setNormalMode();
+    }
     setBuzzer(OFF);         // TODO: akustische Rückmeldung?!
   } else if (!sync.syncing && delta >= LONG_PRESS_TIME) {
     sync.syncing = true;
@@ -96,42 +117,40 @@ alarmModes getAlarmMode(void) {
           o  VCC
           |
           o
-        \
          \   Alarm Off / On
           o
           |
           o-----.
           |     |
          .-.    o
-         | |  \
-         | |   \  Alarm 1 / Alarm 2
+     10k | |   \  Alarm 1 / Alarm 2
          '-'    o
           |     |
           o-----o-----------> ALARM_MODE_PIN
           |
          .-.
-         | |
-         | |
+     10k | |
          '-'
           |
          --- GND
   */
   int rawADC = analogRead(ALARM_MODE_PIN);
   // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
-  if (rawADC < ADC_20_PERCENT)
+  if (rawADC < ADC_20_PERCENT) // about GND
     return DISABLED;
   else if (rawADC > ADC_80_PERCENT)
-    return TWO;
+    return TWO;                // about VCC
   else
-    return ONE;
+    return ONE;                // about VCC / 2
 }
 
 uint8_t bcdRead(uint8_t pos) {
   uint8_t val;
-  digitalWrite(pos, LOW);       // Selecting the specific BCD switch
-  delayMicroseconds(2);         // necessary?
-  val = ALARM_BCD_PORT & 0x0f;  // Mask the 4 high order bits
-  digitalWrite(pos, HIGH);      // Deselecting the specific BCD switch
+  digitalWrite(pos, LOW);            // Selecting the specific BCD switch
+  delayMicroseconds(10);             // necessary?
+  // reading the whole port and mask the 4 high order bits
+  val = digitalPinToPort(ALARM_BCD1_PIN) & 0b00001111; 
+  digitalWrite(pos, HIGH);           // Deselecting the specific BCD switch
   return val;
 }
 
@@ -145,21 +164,22 @@ void updateAlarmSettings(void) {
       disp1.setPoint(POINT_UPPER_LEFT);
       alarm.minute.digit.lo = bcdRead(ALARM1_MINUTE_LO_PIN);
       alarm.minute.digit.hi = bcdRead(ALARM1_MINUTE_HI_PIN);
-      alarm.hour.digit.lo = bcdRead(ALARM1_HOUR_LO_PIN);
-      alarm.hour.digit.hi = bcdRead(ALARM1_HOUR_HI_PIN);
+      alarm.hour.digit.lo   = bcdRead(ALARM1_HOUR_LO_PIN);
+      alarm.hour.digit.hi   = bcdRead(ALARM1_HOUR_HI_PIN);
     } else if (alarm.mode == TWO) {
       disp1.clearPoint(POINT_UPPER_LEFT);
       disp1.setPoint(POINT_LOWER_LEFT);
       alarm.minute.digit.lo = bcdRead(ALARM2_MINUTE_LO_PIN);
       alarm.minute.digit.hi = bcdRead(ALARM2_MINUTE_HI_PIN);
-      alarm.hour.digit.lo = bcdRead(ALARM2_HOUR_LO_PIN);
-      alarm.hour.digit.hi = bcdRead(ALARM2_HOUR_HI_PIN);
-    } else {  // DISABLED
+      alarm.hour.digit.lo   = bcdRead(ALARM2_HOUR_LO_PIN);
+      alarm.hour.digit.hi   = bcdRead(ALARM2_HOUR_HI_PIN);
+    } else { // DISABLED
       disp1.clearPoint(POINT_UPPER_LEFT);
       disp1.clearPoint(POINT_LOWER_LEFT);
       alarm.minute.val = ALARM_VAL_UNDEF;
       alarm.hour.val = ALARM_VAL_UNDEF;
     }
+    refreshDisplays();
   }
 }
 
@@ -212,8 +232,19 @@ void setupDCF77_Uhr(void) {
   pinMode(ALARM_BCD2_PIN, INPUT_PULLUP);
   pinMode(ALARM_BCD4_PIN, INPUT_PULLUP);
   pinMode(ALARM_BCD8_PIN, INPUT_PULLUP);
-  DDRD = DDRD | B11111100; // PD2..PD7 as output (BCD switch selection)
-  DDRB = DDRB | B00000011; // PB0..PB1 as output (BCD switch selection)
+
+  /*
+  DDRD  |= B11111100; // sets PD2..PD7 as output  
+  PORTD |= B11111100; // sets PD2..PD7 to a high level
+  DDRB  |= B00000011; // sets PB0..PB1 as output 
+  PORTB |= B00000011; // sets PB0..PB1 to a high level
+  */
+  // sets all BCD switch selection pins as output and level to high (no selection)
+  for (uint8_t i = 0; i < ARRAYSIZE(BCDselectors); i++) {
+    pinMode(BCDselectors[i], OUTPUT);
+    digitalWrite(BCDselectors[i], HIGH);
+  }
+
   pinMode(DCF77_MONITOR_LED, OUTPUT);      // nötig?
   pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP); // nötig?
   uniButton = OneButton(UNI_BUTTON_PIN, // Input pin for the button

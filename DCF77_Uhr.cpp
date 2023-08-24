@@ -27,8 +27,8 @@ void dummyUpdateDisplay() {
   uint8_t len;
   uint8_t i;
   static uint8_t lastLevel = LOW;
-  Serial.print("alarm.state: "); Serial.println(alarm.state);
-  Serial.print("alarm.mode: "); Serial.println(alarm.mode);
+  //Serial.print("alarm.state: "); Serial.println(alarm.state);
+
   digitalWrite(DCF77_MONITOR_LED, lastLevel);
   if (lastLevel == LOW) lastLevel = HIGH; else lastLevel = LOW;
 
@@ -71,8 +71,7 @@ void dummyUpdateDisplay() {
         disp3.setDigit(DIGIT_4, 3);
         break;
       case VIEW_QTY:
-        len = sizeof(sync.quality) / sizeof(sync.quality[0]);
-        i = len - 4;
+        i = ARRAYSIZE(sync.quality) - 4;
         disp2.setDigit(DIGIT_1, sync.quality[i] / 10);
         disp2.setDigit(DIGIT_2, sync.quality[i++] % 10, true);
         disp2.setDigit(DIGIT_3, sync.quality[i] / 10);
@@ -83,7 +82,6 @@ void dummyUpdateDisplay() {
         disp3.setDigit(DIGIT_4, sync.quality[i] % 10);
         break;
       case VIEW_VERSION:
-        //Serial.print("viewMode: "); Serial.println(viewMode);
         disp2.setDigit(DIGIT_1, DCF77_UHR_MAJOR_VERSION / 10);
         disp2.setDigit(DIGIT_2, DCF77_UHR_MAJOR_VERSION % 10, true);
         disp2.setDigit(DIGIT_3, DCF77_UHR_MINOR_VERSION / 10);
@@ -105,14 +103,12 @@ void dummyUpdateDisplay() {
     disp3.setDigit(DIGIT_4, x_second % 10);
   }
   
-  disp1.sendLed();
-  disp2.sendLed();
-  disp3.sendLed();
+  refreshDisplays();
 }
 
 void loop() {
-  uniButton.tick();    //call often
-  updateBuzzerCycle(); //call often
+  uniButton.tick();    // call often
+  updateBuzzerCycle(); // call often
 
   if (periodTimer.cycleTrigger(PERIOD)) { // Gets called every PERIOD once
     dummyUpdateDisplay();

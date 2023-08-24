@@ -30,6 +30,8 @@ https://github.com/mathertel/OneButton
   (EXPAND_THEN_STRINGIFY(DCF77_UHR_MAJOR_VERSION) "." EXPAND_THEN_STRINGIFY( \
       DCF77_UHR_MINOR_VERSION) "." EXPAND_THEN_STRINGIFY(DCF77_UHR_PATCH_VERSION))
 
+#define ARRAYSIZE(x)  (sizeof(x) / sizeof(x[0]))
+
 enum viewModes {
   VIEW_UNDEFINED,
   VIEW_SEC,    // 14.08.  59
@@ -65,7 +67,7 @@ typedef struct {
 #define ALARM_BCD2_PIN 15      // PC1
 #define ALARM_BCD4_PIN 16      // PC2
 #define ALARM_BCD8_PIN 17      // PC3
-#define ALARM_BCD_PORT PORTC   // PC0..PC7
+//#define ALARM_BCD_PORT PORTC   // PC0..PC7
 
 #define ALARM1_HOUR_HI_PIN 2   // PD2 (BCD switch selection)
 #define ALARM1_HOUR_LO_PIN 3   // PD3 (BCD switch selection)
@@ -120,6 +122,7 @@ extern OneButton uniButton;
 extern void setupDCF77_Uhr(void);
 extern void setNormalMode(void);
 extern void setSleepMode(void);
+extern void refreshDisplays(void);
 extern void setBuzzer(uint8_t x);
 extern muTimer periodTimer;
 extern muTimer buzzerTimer;
