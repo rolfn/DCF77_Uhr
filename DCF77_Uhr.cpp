@@ -112,7 +112,7 @@ void dummyUpdateDisplay() {
 
 void loop() {
   uniButton.tick();    //call often
-  handleBuzzerCycle(); //call often
+  updateBuzzerCycle(); //call often
 
   if (periodTimer.cycleTrigger(PERIOD)) { // Gets called every PERIOD once
     dummyUpdateDisplay();

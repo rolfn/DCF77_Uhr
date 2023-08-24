@@ -14,15 +14,15 @@ Adafruit_7Seg disp1;
 Adafruit_7Seg disp2;
 Adafruit_7Seg disp3;
 OneButton uniButton;
-views viewMode = VIEW_SEC, lastViewMode = VIEW_UNDEFINED;
+viewModes viewMode = VIEW_SEC;
+viewModes lastViewMode = VIEW_UNDEFINED;
 alarmModes lastAlarmMode = UNDEFINED;
 
 muTimer periodTimer = muTimer();
 muTimer buzzerTimer = muTimer();
-muTimer snoozeTimer = muTimer();
 
-alarm_time_t alarm = {.hour = {.val = ALARM_UNDEFINED},
-                      .minute = {.val = ALARM_UNDEFINED},
+alarm_time_t alarm = {.hour = {.val = ALARM_VAL_UNDEF},
+                      .minute = {.val = ALARM_VAL_UNDEF},
                       .snoozeStart = 0,
                       .mode = ONE,
                       .state = WAITING};
@@ -47,8 +47,8 @@ void setSleepMode(void) {
 
 // this function will be called several times after SHORT_PRESS_TIME has
 // expired.
-void handleDuringLongPress(void *btn) {
-  unsigned long delta = ((OneButton *)btn)->getPressedMs();  // TODO: simplify
+void detectingPress(void *btn) {
+  unsigned long delta = ((OneButton *)btn)->getPressedMs();
   if (delta >= MEDIUM_PRESS_TIME && delta < LONG_PRESS_TIME) {
     alarm.state = WAITING;  // Should also be effective for >=LONG_PRESS_TIME
     setBuzzer(OFF);         // TODO: akustische Rückmeldung?!
@@ -63,7 +63,7 @@ void handleDuringLongPress(void *btn) {
 
 // this function will be called when the key is released after SHORT_PRESS_TIME
 // has expired.
-void handleLongPressStop(void *btn) {
+void detectingPressStop(void *btn) {
   unsigned long delta = ((OneButton *)btn)->getPressedMs();
   if (delta >= SHORT_PRESS_TIME && delta < MEDIUM_PRESS_TIME) {
     if (sync.syncing) {
@@ -71,7 +71,8 @@ void handleLongPressStop(void *btn) {
       setNormalMode();
     }
     if (alarm.state == ACTIVE) {
-      alarm.state = SNOOZE;  // TODO: Per 5-Minuten-Timer auf ACTIVE setzen
+      alarm.state = SNOOZE; 
+      // Switches back to ACTIVE after ALARM_SNOOZE_MAX has elapsed
       alarm.snoozeStart = millis();
       setBuzzer(OFF);  // TODO: akustische Rückmeldung?!
     } else {           // Set next view mode
@@ -88,9 +89,9 @@ void handleLongPressStop(void *btn) {
   }
 }
 
-uint8_t getAlarmMode(void) {
+alarmModes getAlarmMode(void) {
   /*
-    Determines the alarm mode as folows:
+    Determines the alarm mode as follows:
 
           o  VCC
           |
@@ -127,10 +128,10 @@ uint8_t getAlarmMode(void) {
 
 uint8_t bcdRead(uint8_t pos) {
   uint8_t val;
-  digitalWrite(pos, LOW);       // selecting the specific BCD switch
+  digitalWrite(pos, LOW);       // Selecting the specific BCD switch
   delayMicroseconds(2);         // necessary?
-  val = ALARM_BCD_PORT & 0x0f;  // mask the 4 high order bits
-  digitalWrite(pos, HIGH);      // deselecting the specific BCD switch
+  val = ALARM_BCD_PORT & 0x0f;  // Mask the 4 high order bits
+  digitalWrite(pos, HIGH);      // Deselecting the specific BCD switch
   return val;
 }
 
@@ -138,6 +139,7 @@ void updateAlarmSettings(void) {
   alarm.mode = getAlarmMode();
   if (alarm.mode != lastAlarmMode) {
     lastAlarmMode = alarm.mode;
+    alarm.state = WAITING;
     if (alarm.mode == ONE) {
       disp1.clearPoint(POINT_LOWER_LEFT);
       disp1.setPoint(POINT_UPPER_LEFT);
@@ -155,8 +157,8 @@ void updateAlarmSettings(void) {
     } else {  // DISABLED
       disp1.clearPoint(POINT_UPPER_LEFT);
       disp1.clearPoint(POINT_LOWER_LEFT);
-      alarm.minute.val = ALARM_UNDEFINED;
-      alarm.hour.val = ALARM_UNDEFINED;
+      alarm.minute.val = ALARM_VAL_UNDEF;
+      alarm.hour.val = ALARM_VAL_UNDEF;
     }
   }
 }
@@ -174,7 +176,7 @@ void handleSnooze(void) {
 // Turn piezo buzzer on or off
 void setBuzzer(uint8_t x) { digitalWrite(BUZZER_PIN, x); }
 
-void handleBuzzerCycle(void) {
+void updateBuzzerCycle(void) {
   if (alarm.state != ACTIVE) {
     return;
   }
@@ -195,7 +197,6 @@ void handleBuzzerCycle(void) {
 
 void longPeriod(void) {
   updateAlarmSettings();
-  
   handleSnooze();
 }
 
@@ -207,28 +208,25 @@ void setupDCF77_Uhr(void) {
   disp2.setBrightness(3);   // 0..16
   disp3.setBrightness(3);   // 0..16
   disp1.setPoint(COLON);
-  // TODO: setupPins()
-  pinMode(ALARM_BCD1, INPUT_PULLUP);
-  pinMode(ALARM_BCD2, INPUT_PULLUP);
-  pinMode(ALARM_BCD4, INPUT_PULLUP);
-  pinMode(ALARM_BCD8, INPUT_PULLUP);
-  DDRD = DDRD | B11111100;             // PD2..PD7 as output (BCD selection)
-  DDRB = DDRB | B00000011;             // PB0..PB1 as output (BCD selection)
-  pinMode(DCF77_MONITOR_LED, OUTPUT);  // nötig?
-  // pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
-  uniButton = OneButton(UNI_BUTTON_PIN,  // Input pin for the button
-                        true,            // Button is active LOW
-                        true             // Enable internal pull-up resistor
+  pinMode(ALARM_BCD1_PIN, INPUT_PULLUP);
+  pinMode(ALARM_BCD2_PIN, INPUT_PULLUP);
+  pinMode(ALARM_BCD4_PIN, INPUT_PULLUP);
+  pinMode(ALARM_BCD8_PIN, INPUT_PULLUP);
+  DDRD = DDRD | B11111100; // PD2..PD7 as output (BCD switch selection)
+  DDRB = DDRB | B00000011; // PB0..PB1 as output (BCD switch selection)
+  pinMode(DCF77_MONITOR_LED, OUTPUT);      // nötig?
+  pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP); // nötig?
+  uniButton = OneButton(UNI_BUTTON_PIN, // Input pin for the button
+                        true,           // Button is active LOW
+                        true            // Enable internal pull-up resistor
   );
-  /// uniButton.setClickMs(SINGLE_CLICK_TIME);
   uniButton.setPressMs(SHORT_PRESS_TIME);
-  /// uniButton.attachClick(handleSingleClick); // Single Click event
-  uniButton.attachDuringLongPress(handleDuringLongPress,
-                                  &uniButton);  // During Long Press events
-  uniButton.attachLongPressStop(handleLongPressStop,
-                                &uniButton);  // Long Press Stop event
+  uniButton.attachDuringLongPress(detectingPress,
+                                &uniButton); // During Long Press events
+  uniButton.attachLongPressStop(detectingPressStop,
+                                &uniButton); // Long Press Stop event
   pinMode(BUZZER_PIN, OUTPUT);
   setBuzzer(ON);
-  delay(500);
+  delay(100);
   setBuzzer(OFF);
 }

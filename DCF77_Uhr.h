@@ -23,14 +23,14 @@ https://github.com/mathertel/OneButton
 #include <OneButton.h>
 
 #define DCF77_UHR_MAJOR_VERSION 1
-#define DCF77_UHR_MINOR_VERSION 4
-#define DCF77_UHR_PATCH_VERSION 13
+#define DCF77_UHR_MINOR_VERSION 3
+#define DCF77_UHR_PATCH_VERSION 15
 
 #define DCF77_UHR_VERSION_STRING                                             \
   (EXPAND_THEN_STRINGIFY(DCF77_UHR_MAJOR_VERSION) "." EXPAND_THEN_STRINGIFY( \
       DCF77_UHR_MINOR_VERSION) "." EXPAND_THEN_STRINGIFY(DCF77_UHR_PATCH_VERSION))
 
-enum views {
+enum viewModes {
   VIEW_UNDEFINED,
   VIEW_SEC,    // 14.08.  59
   VIEW_DATE,   // 14.08.2023
@@ -61,21 +61,21 @@ typedef struct {
   uint8_t quality[32];
 } sync_t;
 
-#define ALARM_BCD1 14          // PC0
-#define ALARM_BCD2 15          // PC1
-#define ALARM_BCD4 16          // PC2
-#define ALARM_BCD8 17          // PC3
-#define ALARM_BCD_PORT PORTC   // Pins 14, 15, 16, 17
+#define ALARM_BCD1_PIN 14      // PC0
+#define ALARM_BCD2_PIN 15      // PC1
+#define ALARM_BCD4_PIN 16      // PC2
+#define ALARM_BCD8_PIN 17      // PC3
+#define ALARM_BCD_PORT PORTC   // PC0..PC7
 
-#define ALARM1_HOUR_HI_PIN 2   // PD2
-#define ALARM1_HOUR_LO_PIN 3   // PD3
-#define ALARM1_MINUTE_HI_PIN 4 // PD4
-#define ALARM1_MINUTE_LO_PIN 5 // PD5
+#define ALARM1_HOUR_HI_PIN 2   // PD2 (BCD switch selection)
+#define ALARM1_HOUR_LO_PIN 3   // PD3 (BCD switch selection)
+#define ALARM1_MINUTE_HI_PIN 4 // PD4 (BCD switch selection)
+#define ALARM1_MINUTE_LO_PIN 5 // PD5 (BCD switch selection)
 
-#define ALARM2_HOUR_HI_PIN 6   // PD6
-#define ALARM2_HOUR_LO_PIN 7   // PD7
-#define ALARM2_MINUTE_HI_PIN 8 // PB0
-#define ALARM2_MINUTE_LO_PIN 9 // PB1
+#define ALARM2_HOUR_HI_PIN 6   // PD6 (BCD switch selection)
+#define ALARM2_HOUR_LO_PIN 7   // PD7 (BCD switch selection)
+#define ALARM2_MINUTE_HI_PIN 8 // PB0 (BCD switch selection)
+#define ALARM2_MINUTE_LO_PIN 9 // PB1 (BCD switch selection)
 
 #define ALARM_MODE_PIN A6
 #define UNI_BUTTON_PIN 10      // PB2
@@ -84,7 +84,7 @@ typedef struct {
 #define BUZZER_ON_TIME  250 // ms
 #define BUZZER_OFF_TIME 150 // ms
 
-#define ALARM_UNDEFINED 0xff
+#define ALARM_VAL_UNDEF 0xff
 //#define ALARM_SNOOZE_MAX 300000L  // 300000 = 5 min
 #define ALARM_SNOOZE_MAX 60000L  // 60000 = 1 min
 
@@ -112,7 +112,7 @@ extern Adafruit_7Seg disp2;
 extern Adafruit_7Seg disp3;
 extern alarm_time_t alarm;
 extern sync_t sync;
-extern views viewMode, lastViewMode;
+extern viewModes viewMode, lastViewMode;
 extern alarmModes lastAlarmMode;
 extern void longPeriod(void);
 extern void updateAlarmSettings(void);
@@ -124,7 +124,7 @@ extern void setBuzzer(uint8_t x);
 extern muTimer periodTimer;
 extern muTimer buzzerTimer;
 extern muTimer snoozeTimer;
-extern void handleBuzzerCycle(void);
+extern void updateBuzzerCycle(void);
 extern void handleSnooze(void);
 
 #endif
