@@ -11,102 +11,89 @@
 
 #include "DCF77_Uhr.h"
 
-uint8_t x_second = 0, x_minute = 0, x_hour = 0;
-
 void setup() {
-  analogReference(DEFAULT);
-  Serial.begin(9600);
-  while (!Serial)
-    ;
   setupDCF77_Uhr();
 }
 
-#define PERIOD 1000
+#define PERIOD 1000L
 
 void dummyUpdateDisplay() {
   uint8_t i;
   static uint8_t lastLevel = LOW;
+  static uint16_t x_year = 2023;
+  static uint8_t x_month = 8, x_day = 25, x_hour = 10, x_minute = 30, x_second = 0;
+
   //Serial.print("alarm.state: "); Serial.println(alarm.state);
 
   digitalWrite(DCF77_MONITOR_LED, lastLevel);
-  if (lastLevel == LOW) lastLevel = HIGH; else lastLevel = LOW;
+  lastLevel = !lastLevel;
 
-  if (x_second == 59) {
-    x_second = 0;
-  } else {
-    x_second++;
-  }
+  if (false) {
 
-  if (x_minute == 59) {
-    x_minute = 0;
-    if (x_hour == 23) {
-      x_hour = 0;
+  } else { // dummy clock
+    if (x_second == 59) {
+      x_second = 0;
+      if (x_minute == 59) {
+        x_minute = 0;
+        if (x_hour == 23) {
+          x_hour = 0;
+        } else {
+          x_hour++;
+        }
+      } else {
+        x_minute++;
+      }
     } else {
-      x_hour++;
-    }
-  } else {
-    x_minute++;
+      x_second++;
+    }  
   }
+
+  // Outputs independent of 'viewMode'
+  showNumber(disp1, 1, x_hour);
+  showNumber(disp1, 3, x_minute);
+
   if (viewMode != lastViewMode) {
     lastViewMode = viewMode;
     disp2.clearAll();
     disp3.clearAll();
-    switch (viewMode) {
-      case VIEW_SEC:
-        disp2.setDigit(DIGIT_1, 1);
-        disp2.setDigit(DIGIT_2, 5, true);
-        disp2.setDigit(DIGIT_3, 0);
-        disp2.setDigit(DIGIT_4, 8, true);
-        //disp3.setPoint(COLON);
-        break;
-      case VIEW_DATE:
-        disp2.setDigit(DIGIT_1, 1);
-        disp2.setDigit(DIGIT_2, 5, true);
-        disp2.setDigit(DIGIT_3, 0);
-        disp2.setDigit(DIGIT_4, 8, true);
-        disp3.setDigit(DIGIT_1, 2);
-        disp3.setDigit(DIGIT_2, 0);
-        disp3.setDigit(DIGIT_3, 2);
-        disp3.setDigit(DIGIT_4, 3);
-        break;
-      case VIEW_QTY:
-        i = ARRAYSIZE(sync.quality) - 4;
-        disp2.setDigit(DIGIT_1, sync.quality[i] / 10);
-        disp2.setDigit(DIGIT_2, sync.quality[i++] % 10, true);
-        disp2.setDigit(DIGIT_3, sync.quality[i] / 10);
-        disp2.setDigit(DIGIT_4, sync.quality[i++] % 10, true);
-        disp3.setDigit(DIGIT_1, sync.quality[i] / 10);
-        disp3.setDigit(DIGIT_2, sync.quality[i++] % 10, true);
-        disp3.setDigit(DIGIT_3, sync.quality[i] / 10);
-        disp3.setDigit(DIGIT_4, sync.quality[i] % 10);
-        break;
-      case VIEW_VERSION:
-        disp2.setDigit(DIGIT_1, DCF77_UHR_MAJOR_VERSION / 10);
-        disp2.setDigit(DIGIT_2, DCF77_UHR_MAJOR_VERSION % 10, true);
-        disp2.setDigit(DIGIT_3, DCF77_UHR_MINOR_VERSION / 10);
-        disp2.setDigit(DIGIT_4, DCF77_UHR_MINOR_VERSION % 10, true);
-        disp3.setDigit(DIGIT_1, DCF77_UHR_PATCH_VERSION / 10);
-        disp3.setDigit(DIGIT_2, DCF77_UHR_PATCH_VERSION % 10);
-        break;
-      default:
-        break;
-    }
+  }
+  switch (viewMode) {
+    case VIEW_SEC:
+      showNumber(disp2, 1, x_day, true);
+      showNumber(disp2, 3, x_month, true);
+      showNumber(disp3, 3, x_second);
+      break;
+    case VIEW_DATE:
+      showNumber(disp2, 1, x_day, true);
+      showNumber(disp2, 3, x_month, true);
+      showNumber(disp3, 1, x_year / 100);
+      showNumber(disp3, 3, x_year % 100);
+      break;
+    case VIEW_QTY:
+      i = ARRAYSIZE(sync.quality) - 4;
+      showNumber(disp2, 1, sync.quality[i++], true);
+      showNumber(disp2, 3, sync.quality[i++], true);
+      showNumber(disp3, 1, sync.quality[i++], true);
+      showNumber(disp3, 3, sync.quality[i++], true);
+      break;
+    case VIEW_VERSION:
+      showNumber(disp2, 1, DCF77_UHR_MAJOR_VERSION, true);
+      showNumber(disp2, 3, DCF77_UHR_MINOR_VERSION, true);
+      showNumber(disp3, 1, DCF77_UHR_PATCH_VERSION);
+      break;
+    default:
+      break;
   }
 
-  disp1.setDigit(DIGIT_1, x_hour / 10);
-  disp1.setDigit(DIGIT_2, x_hour % 10);
-  disp1.setDigit(DIGIT_3, x_minute / 10);
-  disp1.setDigit(DIGIT_4, x_minute % 10);
   if (viewMode == VIEW_SEC) {
-    disp3.setDigit(DIGIT_3, x_second / 10);
-    disp3.setDigit(DIGIT_4, x_second % 10);
+    //showNumber(disp3, 3, x_second);
   }
   refreshDisplays();
 }
 
 void loop() {
-  uniButton.tick();    // call often
-  updateBuzzerCycle(); // call often
+  uniButton.tick();    // Call is often required
+  updateBuzzerCycle(); // Call is often required
 
   if (periodTimer.cycleTrigger(PERIOD)) { // Gets called every PERIOD once
     dummyUpdateDisplay();

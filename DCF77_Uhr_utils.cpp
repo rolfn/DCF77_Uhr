@@ -55,19 +55,32 @@ uint8_t BCDselectors[] = {ALARM1_HOUR_HI_PIN,   ALARM1_HOUR_LO_PIN,
                           ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN,
                           ALARM2_HOUR_HI_PIN,   ALARM2_HOUR_LO_PIN,
                           ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN};
+                  
+uint8_t digitPos[] = { DIGIT_1, DIGIT_2, DIGIT_3, DIGIT_4 };
 
-// this function will be called several times after SHORT_PRESS_TIME has
+// Auxiliary functions for number display
+void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num, bool dp) {
+  // note: "call by reference" for parameter 'disp'
+  uint8_t p = pos;
+  disp.setDigit(digitPos[p--], num % 10, dp);
+  disp.setDigit(digitPos[p], num / 10);
+}
+void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num) {
+  showNumber(disp, pos, num, false);
+}
+
+// this function will be called several times after SHORT_PRESS has
 // expired.
 void detectingPress(void *btn) {
   unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  if (delta >= MEDIUM_PRESS_TIME && delta < LONG_PRESS_TIME) {
-    alarm.state = WAITING;  // Should also be effective for >=LONG_PRESS_TIME
+  if (delta >= MEDIUM_PRESS && delta < LONG_PRESS) {
+    alarm.state = WAITING;  // Should also be effective for >=LONG_PRESS
     if (sync.syncing) {
       sync.syncing = false;
       setNormalMode();
     }
     setBuzzer(OFF);  // TODO: akustische Rückmeldung?!
-  } else if (!sync.syncing && delta >= LONG_PRESS_TIME) {
+  } else if (!sync.syncing && delta >= LONG_PRESS) {
     sync.syncing = true;
     setSleepMode();                 // + syncing, sync.syncing = true
     alarm.state = ACTIVE;           // provisorisch zum Testen
@@ -76,11 +89,11 @@ void detectingPress(void *btn) {
   }
 }
 
-// this function will be called when the key is released after SHORT_PRESS_TIME
+// this function will be called when the key is released after SHORT_PRESS
 // has expired.
 void detectingPressStop(void *btn) {
   unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  if (delta >= SHORT_PRESS_TIME && delta < MEDIUM_PRESS_TIME) {
+  if (delta >= SHORT_PRESS && delta < MEDIUM_PRESS) {
     if (sync.syncing) {
       sync.syncing = false;
       setNormalMode();
@@ -130,12 +143,12 @@ alarmModes getAlarmMode(void) {
   */
   int rawADC = analogRead(ALARM_MODE_PIN);
   // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
-  if (rawADC < ADC_20_PERCENT)  // about GND
+  if (rawADC < ADC_20_PERCENT)  // GND
     return DISABLED;
   else if (rawADC > ADC_80_PERCENT)
-    return TWO;  // about VCC
+    return TWO;                 // VCC
   else
-    return ONE;  // about VCC / 2
+    return ONE;                 // VCC / 2
 }
 
 uint8_t bcdRead(uint8_t pos) {
@@ -144,14 +157,12 @@ uint8_t bcdRead(uint8_t pos) {
   delayMicroseconds(10);   // necessary?
   // reading the whole port and mask the 4 high order bits
   val = digitalPinToPort(ALARM_BCD1_PIN) & 0b00001111;
-  digitalWrite(pos, HIGH);  // Deselecting the specific BCD switch
+  digitalWrite(pos, HIGH); // Deselecting the specific BCD switch
   return val;
 }
 
 uint8_t getHour(uint8_t hiPos, uint8_t loPos) {
-  uint8_t x;
-  x = bcdRead(hiPos) * 10;
-  x+= bcdRead(loPos);
+  uint8_t x = bcdRead(hiPos) * 10 + bcdRead(loPos);
   // === dummy ===
   if (hiPos == ALARM1_HOUR_HI_PIN) {
     x = 7;  // 7:32
@@ -165,9 +176,7 @@ uint8_t getHour(uint8_t hiPos, uint8_t loPos) {
 }
 
 uint8_t getMinute(uint8_t hiPos, uint8_t loPos) {
-  uint8_t x;
-  x = bcdRead(hiPos) * 10;
-  x+= bcdRead(loPos);
+  uint8_t x = bcdRead(hiPos) * 10 + bcdRead(loPos);
   // === dummy ===
   x = 32;
   // =============
@@ -213,7 +222,7 @@ void updateAlarmSettings(void) {
       Serial.print(alarm.hour); Serial.print(":");
       Serial.print(alarm.minute);
       Serial.println((invalid) ? " (invalid)" : "");
-    } else {  // DISABLED
+    } else { // DISABLED
       invalid = true;
       alarm.minute = ALARM_VAL_UNDEF;
       alarm.hour = ALARM_VAL_UNDEF;
@@ -224,17 +233,15 @@ void updateAlarmSettings(void) {
       disp1.clearPoint(POINT_UPPER_LEFT);
       disp1.clearPoint(POINT_LOWER_LEFT);
     }
-    // TODO: .state = INVALID
     refreshDisplays();
   }
 }
 
-void handleSnooze(void) {
-  if (alarm.state == SNOOZE) {
-    if ((unsigned long)(millis() - alarm.snoozeStart) >= ALARM_SNOOZE_MAX) {
-      // activate the alarm after the end of the snooze time
-      alarm.state = ACTIVE;
-    }
+void snoozeHandling(void) {
+  if (alarm.state != SNOOZE) return;
+  if ((unsigned long)(millis() - alarm.snoozeStart) >= ALARM_SNOOZE_MAX) {
+    // activate the alarm after the end of the snooze time
+    alarm.state = ACTIVE;
   }
   return;
 }
@@ -243,10 +250,8 @@ void handleSnooze(void) {
 void setBuzzer(uint8_t x) { digitalWrite(BUZZER_PIN, x); }
 
 void updateBuzzerCycle(void) {
-  if (alarm.state != ACTIVE) {
-    return;
-  }
-  switch (buzzerTimer.cycleOnOffTrigger(BUZZER_ON_TIME, BUZZER_OFF_TIME)) {
+  if (alarm.state != ACTIVE) return;
+  switch (buzzerTimer.cycleOnOffTrigger(BUZZER_ON, BUZZER_OFF)) {
     // state changed from 1->0
     case 0:
       setBuzzer(OFF);
@@ -262,11 +267,16 @@ void updateBuzzerCycle(void) {
 }
 
 void longPeriod(void) {
-  updateAlarmSettings();
-  handleSnooze();
+  updateAlarmSettings(); // Call is rarely required
+  snoozeHandling();      // Call is rarely required
 }
 
 void setupDCF77_Uhr(void) {
+  analogReference(DEFAULT);
+
+  Serial.begin(9600);
+  while (!Serial) ;
+
   disp1.begin(DISP1_ADR);
   disp2.begin(DISP2_ADR);
   disp3.begin(DISP3_ADR);
@@ -274,19 +284,12 @@ void setupDCF77_Uhr(void) {
   disp2.setBrightness(3);   // 0..16
   disp3.setBrightness(3);   // 0..16
   disp1.setPoint(COLON);
+
   pinMode(ALARM_BCD1_PIN, INPUT_PULLUP);
   pinMode(ALARM_BCD2_PIN, INPUT_PULLUP);
   pinMode(ALARM_BCD4_PIN, INPUT_PULLUP);
   pinMode(ALARM_BCD8_PIN, INPUT_PULLUP);
-
-  /*
-  DDRD  |= B11111100; // sets PD2..PD7 as output
-  PORTD |= B11111100; // sets PD2..PD7 to a high level
-  DDRB  |= B00000011; // sets PB0..PB1 as output
-  PORTB |= B00000011; // sets PB0..PB1 to a high level
-  */
-  // sets all BCD switch selection pins as output and level to high (no
-  // selection)
+  // sets all BCD switch selection pins as output and level to high (no selection)
   for (uint8_t i = 0; i < ARRAYSIZE(BCDselectors); i++) {
     pinMode(BCDselectors[i], OUTPUT);
     digitalWrite(BCDselectors[i], HIGH);
@@ -294,17 +297,18 @@ void setupDCF77_Uhr(void) {
 
   pinMode(DCF77_MONITOR_LED, OUTPUT);       // nötig?
   pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
+
   uniButton = OneButton(UNI_BUTTON_PIN,     // Input pin for the button
                         true,               // Button is active LOW
                         true                // Enable internal pull-up resistor
   );
-  uniButton.setPressMs(SHORT_PRESS_TIME);
+  uniButton.setPressMs(SHORT_PRESS);
   uniButton.attachDuringLongPress(detectingPress,
                                   &uniButton);  // During Long Press events
   uniButton.attachLongPressStop(detectingPressStop,
                                 &uniButton);  // Long Press Stop event
+
   pinMode(BUZZER_PIN, OUTPUT);
-  setBuzzer(ON);
-  delay(100);
-  setBuzzer(OFF);
+  
+  setBuzzer(ON); delay(100); setBuzzer(OFF); // setup ready
 }

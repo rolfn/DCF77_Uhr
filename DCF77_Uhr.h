@@ -12,14 +12,12 @@
 #ifndef DCF77_UHR_H
 #define DCF77_UHR_H
 
-#include <Adafruit_i2c_7seg_LED.h>
 #include <Arduino.h>
-#include <dcf77.h>  // https://github.com/udoklein/dcf77
-#include <muTimer.h>
-/*
-http://www.mathertel.de/Arduino/OneButtonLibrary.aspx
-https://github.com/mathertel/OneButton
-*/
+#include <Adafruit_i2c_7seg_LED.h> // https://github.com/rolfn/Adafruit_i2c_7seg_LED
+#include <dcf77.h>   // https://github.com/udoklein/dcf77
+#include <muTimer.h> // https://github.com/MichaelUray/muTimer
+// http://www.mathertel.de/Arduino/OneButtonLibrary.aspx
+// https://github.com/mathertel/OneButton
 #include <OneButton.h>
 
 #define DCF77_UHR_MAJOR_VERSION 1
@@ -30,7 +28,7 @@ https://github.com/mathertel/OneButton
   (EXPAND_THEN_STRINGIFY(DCF77_UHR_MAJOR_VERSION) "." EXPAND_THEN_STRINGIFY( \
       DCF77_UHR_MINOR_VERSION) "." EXPAND_THEN_STRINGIFY(DCF77_UHR_PATCH_VERSION))
 
-#define ARRAYSIZE(x)  (sizeof(x) / sizeof(x[0]))
+#define ARRAYSIZE(x) (sizeof(x) / sizeof(x[0]))
 
 enum viewModes {
   VIEW_UNDEFINED,
@@ -43,14 +41,14 @@ enum viewModes {
 enum alarmModes { UNDEFINED, ONE, TWO, DISABLED };
 enum alarmStates { INVALID, WAITING, SNOOZE, ACTIVE };
 
-#define DCF77_MONITOR_LED 12  // PB4
+#define DCF77_MONITOR_LED 12 // PB4
 // #define DCF77_MONITOR_LED LED_BUILTIN
-#define DCF77_SAMPLE_PIN 13  // PB5 (???)
-#define DCF77_INVERTED_SAMPLES 1
+#define DCF77_SAMPLE_PIN 13  // PB5 (???) 
+#define DCF77_INVERTED_SAMPLES 1 // ?
 
 typedef struct {
-  uint8_t hour;    // 0..23
-  uint8_t minute;  // 0..59
+  uint8_t hour;
+  uint8_t minute;
   unsigned long snoozeStart;
   alarmModes mode;
   alarmStates state;
@@ -67,7 +65,6 @@ typedef struct {
 #define ALARM_BCD2_PIN 15      // PC1
 #define ALARM_BCD4_PIN 16      // PC2
 #define ALARM_BCD8_PIN 17      // PC3
-//#define ALARM_BCD_PORT PORTC   // PC0..PC7
 
 #define ALARM1_HOUR_HI_PIN 2   // PD2 (BCD switch selection)
 #define ALARM1_HOUR_LO_PIN 3   // PD3 (BCD switch selection)
@@ -81,10 +78,10 @@ typedef struct {
 
 #define ALARM_MODE_PIN A6
 #define UNI_BUTTON_PIN 10      // PB2
-#define BUZZER_PIN 11          // PB3
+#define BUZZER_PIN 11          // PB3  (piezo active buzzer)
 
-#define BUZZER_ON_TIME  250 // ms
-#define BUZZER_OFF_TIME 150 // ms
+#define BUZZER_ON  250 // ms
+#define BUZZER_OFF 150 // ms
 
 #define ALARM_VAL_UNDEF 0xff
 //#define ALARM_SNOOZE_MAX 300000L  // 300000 = 5 min
@@ -102,9 +99,9 @@ typedef struct {
 #define DISP2_ADR 0x01  // i2c address: 0x71
 #define DISP3_ADR 0x02  // i2c address: 0x72
 
-#define SHORT_PRESS_TIME    50L // ms
-#define MEDIUM_PRESS_TIME 1000L // ms
-#define LONG_PRESS_TIME   3500L // ms
+#define SHORT_PRESS    50L // ms
+#define MEDIUM_PRESS 1000L // ms
+#define LONG_PRESS   3500L // ms
 
 #define ON HIGH
 #define OFF LOW
@@ -128,6 +125,9 @@ extern muTimer periodTimer;
 extern muTimer buzzerTimer;
 extern muTimer snoozeTimer;
 extern void updateBuzzerCycle(void);
-extern void handleSnooze(void);
+extern void snoozeHandling(void);
+// später nur noch lokal:
+extern void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num, bool dp);
+extern void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num);
 
 #endif
