@@ -41,7 +41,7 @@ enum viewModes {
 };
 
 enum alarmModes { UNDEFINED, ONE, TWO, DISABLED };
-enum alarmStates { WAITING, SNOOZE, ACTIVE };
+enum alarmStates { INVALID, WAITING, SNOOZE, ACTIVE };
 
 #define DCF77_MONITOR_LED 12  // PB4
 // #define DCF77_MONITOR_LED LED_BUILTIN
@@ -49,15 +49,8 @@ enum alarmStates { WAITING, SNOOZE, ACTIVE };
 #define DCF77_INVERTED_SAMPLES 1
 
 typedef struct {
-  bool invalid;
-  uint8_t val;
-  uint8_t hi; // nötig?
-  uint8_t lo; // nötig?
-} dec_t;
-
-typedef struct {
-  dec_t hour;    // 0..23
-  dec_t minute;  // 0..59
+  uint8_t hour;    // 0..23
+  uint8_t minute;  // 0..59
   unsigned long snoozeStart;
   alarmModes mode;
   alarmStates state;

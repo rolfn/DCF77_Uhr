@@ -21,11 +21,11 @@ alarmModes lastAlarmMode = UNDEFINED;
 muTimer periodTimer = muTimer();
 muTimer buzzerTimer = muTimer();
 
-alarm_time_t alarm = {.hour = {.invalid = true},
-                      .minute = {.invalid = true},
+alarm_time_t alarm = {.hour = 0,
+                      .minute = 0,
                       .snoozeStart = 0,
-                      .mode = ONE,
-                      .state = WAITING};
+                      .mode = UNDEFINED,
+                      .state = INVALID};
 
 sync_t sync = {.hour = SYNC_HOUR,      // nötig?
                .minute = SYNC_MINUTE,  // nötig?
@@ -148,42 +148,37 @@ uint8_t bcdRead(uint8_t pos) {
   return val;
 }
 
-dec_t getHour(uint8_t hiPos, uint8_t loPos) {
-  dec_t x;
-  x.hi = bcdRead(hiPos);
-  x.lo = bcdRead(loPos);
-  x.val = x.hi * 10 + x.lo;
+uint8_t getHour(uint8_t hiPos, uint8_t loPos) {
+  uint8_t x;
+  x = bcdRead(hiPos) * 10;
+  x+= bcdRead(loPos);
   // === dummy ===
   if (hiPos == ALARM1_HOUR_HI_PIN) {
-    x.val = 7;  // 7:32
-    x.hi = 0;
-    x.lo = 7;
+    x = 7;  // 7:32
   } else {
-    x.val = 9;  // 9:32
-    x.hi = 0;
-    x.lo = 9;
+    x = 9;  // 9:32
   }
   // =============
-  x.invalid = x.val > 23;
+  // sets bit 7 if the result is invalid
+  if (x > 23) x |= 0x80;
   return x;
 }
 
-dec_t getMinute(uint8_t hiPos, uint8_t loPos) {
-  dec_t x;
-  x.hi = bcdRead(hiPos);
-  x.lo = bcdRead(loPos);
-  x.val = x.hi * 10 + x.lo;
+uint8_t getMinute(uint8_t hiPos, uint8_t loPos) {
+  uint8_t x;
+  x = bcdRead(hiPos) * 10;
+  x+= bcdRead(loPos);
   // === dummy ===
-  x.val = 32;
-  x.hi = 3;
-  x.lo = 2;
+  x = 32;
   // =============
-  x.invalid = x.val > 59;
+  // sets bit 7 if the result is invalid
+  if (x > 59) x |= 0x80;
   return x;
 }
 
 void updateAlarmSettings(void) {
   bool invalid = false;
+  uint8_t x;
   alarm.mode = getAlarmMode();
   if (alarm.mode != lastAlarmMode) {
     lastAlarmMode = alarm.mode;
@@ -191,35 +186,45 @@ void updateAlarmSettings(void) {
     if (alarm.mode == ONE) {
       disp1.clearPoint(POINT_LOWER_LEFT);
       disp1.setPoint(POINT_UPPER_LEFT);
-      alarm.minute = getMinute(ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN);
-      invalid |= alarm.minute.invalid;
-      alarm.hour = getHour(ALARM1_HOUR_HI_PIN, ALARM1_HOUR_LO_PIN);
-      invalid |= alarm.hour.invalid;
+      x = getMinute(ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN);
+      // mask bit 7
+      alarm.minute = x & 0x7f;
+      // mask bit 6..bit 0
+      invalid |= x & 0x80;
+      x = getHour(ALARM1_HOUR_HI_PIN, ALARM1_HOUR_LO_PIN);
+      alarm.hour = x & 0x7f;
+      invalid |= x & 0x80;
       Serial.print("ALARM 1: ");
-      Serial.print(alarm.hour.val);
-      Serial.print(":");
-      Serial.println(alarm.minute.val);
+      Serial.print(alarm.hour); Serial.print(":");
+      Serial.print(alarm.minute);
+      Serial.println((invalid) ? " (invalid)" : "");
     } else if (alarm.mode == TWO) {
       disp1.clearPoint(POINT_UPPER_LEFT);
       disp1.setPoint(POINT_LOWER_LEFT);
-      alarm.minute = getMinute(ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN);
-      invalid |= alarm.minute.invalid;
-      alarm.hour = getHour(ALARM2_HOUR_HI_PIN, ALARM2_HOUR_LO_PIN);
-      invalid |= alarm.hour.invalid;
+      x = getMinute(ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN);
+      // mask bit 7
+      alarm.minute = x & 0x7f;
+      // mask bit 6..bit 0
+      invalid |= x & 0x80;
+      x = getHour(ALARM2_HOUR_HI_PIN, ALARM2_HOUR_LO_PIN);
+      alarm.hour = x & 0x7f;
+      invalid |= x & 0x80;
       Serial.print("ALARM 2: ");
-      Serial.print(alarm.hour.val);
-      Serial.print(":");
-      Serial.println(alarm.minute.val);
+      Serial.print(alarm.hour); Serial.print(":");
+      Serial.print(alarm.minute);
+      Serial.println((invalid) ? " (invalid)" : "");
     } else {  // DISABLED
       invalid = true;
-      alarm.minute.val = ALARM_VAL_UNDEF;
-      alarm.hour.val = ALARM_VAL_UNDEF;
+      alarm.minute = ALARM_VAL_UNDEF;
+      alarm.hour = ALARM_VAL_UNDEF;
       Serial.println("ALARM: DISABLED");
     }
     if (invalid) {
+      alarm.state = INVALID;
       disp1.clearPoint(POINT_UPPER_LEFT);
       disp1.clearPoint(POINT_LOWER_LEFT);
     }
+    // TODO: .state = INVALID
     refreshDisplays();
   }
 }
