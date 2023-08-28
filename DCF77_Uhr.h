@@ -20,6 +20,13 @@
 // https://github.com/mathertel/OneButton
 #include <OneButton.h>
 
+#ifndef cbi
+#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
+#endif
+#ifndef sbi
+#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
+#endif
+
 #define DCF77_UHR_MAJOR_VERSION 1
 #define DCF77_UHR_MINOR_VERSION 3
 #define DCF77_UHR_PATCH_VERSION 15
@@ -100,7 +107,7 @@ typedef struct {
 #define DISP3_ADR 0x02  // i2c address: 0x72
 
 #define SHORT_PRESS    50L // ms
-#define MEDIUM_PRESS 1000L // ms
+#define MEDIUM_PRESS 1500L // ms
 #define LONG_PRESS   3500L // ms
 
 #define ON HIGH
@@ -121,11 +128,11 @@ extern void setNormalMode(void);
 extern void setSleepMode(void);
 extern void refreshDisplays(void);
 extern void setBuzzer(uint8_t x);
-extern muTimer periodTimer;
 extern muTimer buzzerTimer;
-extern muTimer snoozeTimer;
 extern void updateBuzzerCycle(void);
 extern void snoozeHandling(void);
+extern unsigned long myMillis(void);
+
 // später nur noch lokal:
 extern void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num, bool dp);
 extern void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num);

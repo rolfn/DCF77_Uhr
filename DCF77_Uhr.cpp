@@ -51,7 +51,8 @@ void dummyUpdateDisplay() {
   // Outputs independent of 'viewMode'
   showNumber(disp1, 1, x_hour);
   showNumber(disp1, 3, x_minute);
-
+ 
+  // Outputs dependent on 'viewMode'
   if (viewMode != lastViewMode) {
     lastViewMode = viewMode;
     disp2.clearAll();
@@ -74,7 +75,7 @@ void dummyUpdateDisplay() {
       showNumber(disp2, 1, sync.quality[i++], true);
       showNumber(disp2, 3, sync.quality[i++], true);
       showNumber(disp3, 1, sync.quality[i++], true);
-      showNumber(disp3, 3, sync.quality[i++], true);
+      showNumber(disp3, 3, sync.quality[i],   true);
       break;
     case VIEW_VERSION:
       showNumber(disp2, 1, DCF77_UHR_MAJOR_VERSION, true);
@@ -84,10 +85,6 @@ void dummyUpdateDisplay() {
     default:
       break;
   }
-
-  if (viewMode == VIEW_SEC) {
-    //showNumber(disp3, 3, x_second);
-  }
   refreshDisplays();
 }
 
@@ -95,7 +92,7 @@ void loop() {
   uniButton.tick();    // Call is often required
   updateBuzzerCycle(); // Call is often required
 
-  if (periodTimer.cycleTrigger(PERIOD)) { // Gets called every PERIOD once
+  if (millis() % PERIOD == 0) {
     dummyUpdateDisplay();
     longPeriod();
   }

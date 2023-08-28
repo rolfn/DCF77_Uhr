@@ -63,7 +63,7 @@ void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num, bool dp) {
   // note: "call by reference" for parameter 'disp'
   uint8_t p = pos;
   disp.setDigit(digitPos[p--], num % 10, dp);
-  disp.setDigit(digitPos[p], num / 10);
+  disp.setDigit(digitPos[p],   num / 10);
 }
 void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num) {
   showNumber(disp, pos, num, false);
@@ -152,11 +152,30 @@ alarmModes getAlarmMode(void) {
 }
 
 uint8_t bcdRead(uint8_t pos) {
+  /*
+    .---------------------------o ALARM_BCD8_PIN (internal pull-up resistor)
+    |       .-------------------o ALARM_BCD4_PIN (internal pull-up resistor)
+    |       |       .-----------o ALARM_BCD2_PIN (internal pull-up resistor)
+    |       |       |       .---o ALARM_BCD1_PIN (internal pull-up resistor)
+    |       |       |       |
+   ---     ---     ---     ---
+   \ / D1  \ / D2  \ / D3  \ / D4 
+   ---     ---     ---     ---
+    |       |       |       |
+    o       o       o       o
+   \ "8"   \ "4"   \ "2"   \ "1"      The first of the 8 BCD switches
+    o       o       o       o
+    |       |       |       |
+    '-------o-------o-------'
+            |
+            o ALARM1_HOUR_HI_PIN (BCD switch selection, low active)
+  */  
   uint8_t val;
   digitalWrite(pos, LOW);  // Selecting the specific BCD switch
   delayMicroseconds(10);   // necessary?
-  // reading the whole port and mask the 4 high order bits
-  val = digitalPinToPort(ALARM_BCD1_PIN) & 0b00001111;
+  // reading the whole port and masking the 4 higher bits and then
+  // inverting the 4 lower bits
+  val = (digitalPinToPort(ALARM_BCD1_PIN) & 0b00001111) ^ 0b00001111;
   digitalWrite(pos, HIGH); // Deselecting the specific BCD switch
   return val;
 }
@@ -266,16 +285,85 @@ void updateBuzzerCycle(void) {
   }
 }
 
+volatile unsigned long tick = 0;
+
+void output_handler(const Clock::time_t &decoded_time) {
+  //Serial.print("tick: "); Serial.println(tick);
+}
+
+unsigned long myMillis(void) {// ???
+  unsigned long m;
+  cli();
+  m = tick;
+  sei(); 
+  return m;
+}
+
+uint8_t sample_input_pin() {
+
+  tick++; // Ersatz für millis()
+  if (tick % 1000 == 0) {
+    // Serial.print("1s-tick: "); Serial.println(tick);
+  }
+
+  if (sync.syncing)  {
+  /*
+    const uint8_t sampled_data = DCF77_INVERTED_SAMPLES ^ digitalRead(DCF77_SAMPLE_PIN);
+    digitalWrite(DCF77_MONITOR_LED, sampled_data);
+    return sampled_data;
+  */
+    return LOW;
+  } else {
+    digitalWrite(DCF77_MONITOR_LED, HIGH); // einmalig beim Abschalten von "syncing"
+    return LOW;
+  }
+}
+
 void longPeriod(void) {
   updateAlarmSettings(); // Call is rarely required
   snoozeHandling();      // Call is rarely required
 }
 
+void stop_timer_0(void) {
+#if defined(TIMSK) && defined(TOIE0)
+  cbi (TIMSK, TOIE0);
+#elif defined(TIMSK0) && defined(TOIE0)
+  cbi (TIMSK0, TOIE0);
+#endif
+}
+
+void restart_timer_0(void) {
+// enable timer 0 overflow interrupt
+// --> wiring.c
+#if defined(TIMSK) && defined(TOIE0)
+  sbi(TIMSK, TOIE0);
+#elif defined(TIMSK0) && defined(TOIE0)
+  sbi(TIMSK0, TOIE0);
+#else
+  #error  Timer 0 overflow interrupt not set correctly
+#endif
+}
+
+// TODO: In preSyncing stop_timer_0();
+// TODO: In postSyncing restart_timer_0();
+
 void setupDCF77_Uhr(void) {
   analogReference(DEFAULT);
-
+  
   Serial.begin(9600);
+  //Serial.begin(115200);
   while (!Serial) ;
+
+  pinMode(DCF77_MONITOR_LED, OUTPUT);
+  pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);
+  // /*
+  using namespace Clock;
+  DCF77_Clock::setup();
+  DCF77_Clock::set_input_provider(sample_input_pin);
+  DCF77_Clock::set_output_handler(output_handler);
+  restart_timer_0(); // ???
+  // */
+
 
   disp1.begin(DISP1_ADR);
   disp2.begin(DISP2_ADR);
@@ -295,9 +383,6 @@ void setupDCF77_Uhr(void) {
     digitalWrite(BCDselectors[i], HIGH);
   }
 
-  pinMode(DCF77_MONITOR_LED, OUTPUT);       // nötig?
-  pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);  // nötig?
-
   uniButton = OneButton(UNI_BUTTON_PIN,     // Input pin for the button
                         true,               // Button is active LOW
                         true                // Enable internal pull-up resistor
@@ -309,6 +394,6 @@ void setupDCF77_Uhr(void) {
                                 &uniButton);  // Long Press Stop event
 
   pinMode(BUZZER_PIN, OUTPUT);
-  
+
   setBuzzer(ON); delay(100); setBuzzer(OFF); // setup ready
 }
