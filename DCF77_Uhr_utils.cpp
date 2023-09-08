@@ -170,25 +170,17 @@ uint8_t bcdRead(uint8_t pos) {
             |
             o ALARM1_HOUR_HI_PIN (BCD switch selection, low active)
   */  
-  uint8_t val;
   digitalWrite(pos, LOW);  // Selecting the specific BCD switch
   delayMicroseconds(10);   // necessary?
   // reading the whole port and masking the 4 higher bits and then
   // inverting the 4 lower bits
-  val = (digitalPinToPort(ALARM_BCD1_PIN) & 0b00001111) ^ 0b00001111;
+  uint8_t val = (ALARM_BCD_IN_PORT & 0b00001111) ^ 0b00001111;
   digitalWrite(pos, HIGH); // Deselecting the specific BCD switch
   return val;
 }
 
 uint8_t getHour(uint8_t hiPos, uint8_t loPos) {
   uint8_t x = bcdRead(hiPos) * 10 + bcdRead(loPos);
-  // === dummy ===
-  if (hiPos == ALARM1_HOUR_HI_PIN) {
-    x = 7;  // 7:32
-  } else {
-    x = 9;  // 9:32
-  }
-  // =============
   // sets bit 7 if the result is invalid
   if (x > 23) x |= 0x80;
   return x;
@@ -196,63 +188,55 @@ uint8_t getHour(uint8_t hiPos, uint8_t loPos) {
 
 uint8_t getMinute(uint8_t hiPos, uint8_t loPos) {
   uint8_t x = bcdRead(hiPos) * 10 + bcdRead(loPos);
-  // === dummy ===
-  x = 32;
-  // =============
   // sets bit 7 if the result is invalid
   if (x > 59) x |= 0x80;
   return x;
 }
 
 void updateAlarmSettings(void) {
-  bool invalid = false;
   uint8_t x;
-  alarm.mode = getAlarmMode();
-  if (alarm.mode != lastAlarmMode) {
-    lastAlarmMode = alarm.mode;
-    alarm.state = WAITING;
-    if (alarm.mode == ONE) {
-      disp1.clearPoint(POINT_LOWER_LEFT);
-      disp1.setPoint(POINT_UPPER_LEFT);
-      x = getMinute(ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN);
-      // mask bit 7
-      alarm.minute = x & 0x7f;
-      // mask bit 6..bit 0
-      invalid |= x & 0x80;
-      x = getHour(ALARM1_HOUR_HI_PIN, ALARM1_HOUR_LO_PIN);
-      alarm.hour = x & 0x7f;
-      invalid |= x & 0x80;
-      Serial.print("ALARM 1: ");
-      Serial.print(alarm.hour); Serial.print(":");
-      Serial.print(alarm.minute);
-      Serial.println((invalid) ? " (invalid)" : "");
-    } else if (alarm.mode == TWO) {
-      disp1.clearPoint(POINT_UPPER_LEFT);
-      disp1.setPoint(POINT_LOWER_LEFT);
-      x = getMinute(ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN);
-      // mask bit 7
-      alarm.minute = x & 0x7f;
-      // mask bit 6..bit 0
-      invalid |= x & 0x80;
-      x = getHour(ALARM2_HOUR_HI_PIN, ALARM2_HOUR_LO_PIN);
-      alarm.hour = x & 0x7f;
-      invalid |= x & 0x80;
-      Serial.print("ALARM 2: ");
-      Serial.print(alarm.hour); Serial.print(":");
-      Serial.print(alarm.minute);
-      Serial.println((invalid) ? " (invalid)" : "");
-    } else { // DISABLED
-      invalid = true;
-      alarm.minute = ALARM_VAL_UNDEF;
-      alarm.hour = ALARM_VAL_UNDEF;
-      Serial.println("ALARM: DISABLED");
-    }
-    if (invalid) {
-      alarm.state = INVALID;
-      disp1.clearPoint(POINT_UPPER_LEFT);
-      disp1.clearPoint(POINT_LOWER_LEFT);
-    }
-    refreshDisplays();
+  bool invalid = false;
+  if (alarm.mode == ONE) {
+    disp1.clearPoint(POINT_LOWER_LEFT);
+    disp1.setPoint(POINT_UPPER_LEFT);
+    x = getMinute(ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN);
+    // mask bit 7
+    alarm.minute = x & 0x7f;
+    // mask bit 6..bit 0
+    invalid |= x & 0x80;
+    x = getHour(ALARM1_HOUR_HI_PIN, ALARM1_HOUR_LO_PIN);
+    alarm.hour = x & 0x7f;
+    invalid |= x & 0x80;
+    Serial.print("ALARM 1: ");
+    Serial.print(alarm.hour); Serial.print(":");
+    Serial.print(alarm.minute);
+    Serial.println((invalid) ? " (invalid)" : "");
+  } else if (alarm.mode == TWO) {
+    disp1.clearPoint(POINT_UPPER_LEFT);
+    disp1.setPoint(POINT_LOWER_LEFT);
+    x = getMinute(ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN);
+    // mask bit 7
+    alarm.minute = x & 0x7f;
+    // mask bit 6..bit 0
+    invalid |= x & 0x80;
+    x = getHour(ALARM2_HOUR_HI_PIN, ALARM2_HOUR_LO_PIN);
+    alarm.hour = x & 0x7f;
+    invalid |= x & 0x80;
+    Serial.print("ALARM 2: ");
+    Serial.print(alarm.hour); Serial.print(":");
+    Serial.print(alarm.minute);
+    Serial.println((invalid) ? " (invalid)" : "");
+  } else { // DISABLED
+    invalid = true;
+    alarm.minute = ALARM_VAL_UNDEF;
+    alarm.hour = ALARM_VAL_UNDEF;
+    Serial.println("ALARM: DISABLED");
+  }
+  
+  if (invalid) {
+    alarm.state = INVALID;
+    disp1.clearPoint(POINT_UPPER_LEFT);
+    disp1.clearPoint(POINT_LOWER_LEFT);
   }
 }
 
@@ -299,6 +283,75 @@ unsigned long myMillis(void) {// ???
   return m;
 }
 
+void updateDisplays() {
+  uint8_t i;
+  static uint8_t lastLevel = LOW;
+  static uint16_t x_year = 2023;
+  static uint8_t x_month = 8, x_day = 25, x_hour = 10, x_minute = 30, x_second = 0;
+
+  //Serial.print("alarm.state: "); Serial.println(alarm.state);
+  lastLevel = !lastLevel;
+  digitalWrite(DCF77_MONITOR_LED, lastLevel);
+
+  if (false) {
+
+  } else { // dummy clock
+    if (x_second == 59) {
+      x_second = 0;
+      if (x_minute == 59) {
+        x_minute = 0;
+        if (x_hour == 23) {
+          x_hour = 0;
+        } else {
+          x_hour++;
+        }
+      } else {
+        x_minute++;
+      }
+    } else {
+      x_second++;
+    }  
+  }
+
+  // Outputs independent of 'viewMode'
+  showNumber(disp1, 1, x_hour);
+  showNumber(disp1, 3, x_minute);
+ 
+  // Outputs dependent on 'viewMode'
+  if (viewMode != lastViewMode) {
+    lastViewMode = viewMode;
+    disp2.clearAll();
+    disp3.clearAll();
+  }
+  switch (viewMode) {
+    case VIEW_SEC:
+      showNumber(disp2, 1, x_day, true);
+      showNumber(disp2, 3, x_month, true);
+      showNumber(disp3, 3, x_second);
+      break;
+    case VIEW_DATE:
+      showNumber(disp2, 1, x_day, true);
+      showNumber(disp2, 3, x_month, true);
+      showNumber(disp3, 1, x_year / 100);
+      showNumber(disp3, 3, x_year % 100);
+      break;
+    case VIEW_QTY:
+      i = ARRAYSIZE(sync.quality) - 4;
+      showNumber(disp2, 1, sync.quality[i++], true);
+      showNumber(disp2, 3, sync.quality[i++], true);
+      showNumber(disp3, 1, sync.quality[i++], true);
+      showNumber(disp3, 3, sync.quality[i],   true);
+      break;
+    case VIEW_VERSION:
+      showNumber(disp2, 1, DCF77_UHR_MAJOR_VERSION, true);
+      showNumber(disp2, 3, DCF77_UHR_MINOR_VERSION, true);
+      showNumber(disp3, 1, DCF77_UHR_PATCH_VERSION);
+      break;
+    default:
+      break;
+  }
+}
+
 uint8_t sample_input_pin() {
 
   tick++; // Ersatz für millis()
@@ -314,14 +367,17 @@ uint8_t sample_input_pin() {
   */
     return LOW;
   } else {
-    digitalWrite(DCF77_MONITOR_LED, HIGH); // einmalig beim Abschalten von "syncing"
+    ///digitalWrite(DCF77_MONITOR_LED, HIGH); // einmalig beim Abschalten von "syncing"
     return LOW;
   }
 }
 
-void longPeriod(void) {
-  updateAlarmSettings(); // Call is rarely required
-  snoozeHandling();      // Call is rarely required
+void longPeriod(void) {// Calls that are rarely required
+  snoozeHandling();
+  alarm.mode = getAlarmMode();
+  updateAlarmSettings();
+  updateDisplays();
+  refreshDisplays();
 }
 
 void stop_timer_0(void) {

@@ -72,6 +72,7 @@ typedef struct {
 #define ALARM_BCD2_PIN 15      // PC1
 #define ALARM_BCD4_PIN 16      // PC2
 #define ALARM_BCD8_PIN 17      // PC3
+#define ALARM_BCD_IN_PORT *portInputRegister(digitalPinToPort(ALARM_BCD1_PIN))
 
 #define ALARM1_HOUR_HI_PIN 2   // PD2 (BCD switch selection)
 #define ALARM1_HOUR_LO_PIN 3   // PD3 (BCD switch selection)
