@@ -8,6 +8,9 @@
  * License: MIT
  *
  */
+
+#define DEBUG 1
+#define BAUDRATE 115200L
  
 #ifndef DCF77_UHR_H
 #define DCF77_UHR_H
@@ -15,6 +18,7 @@
 #include <Arduino.h>
 #include <Adafruit_i2c_7seg_LED.h> // https://github.com/rolfn/Adafruit_i2c_7seg_LED
 #include <dcf77.h>   // https://github.com/udoklein/dcf77
+#include <beepers.h>
 #include <muTimer.h> // https://github.com/MichaelUray/muTimer
 // http://www.mathertel.de/Arduino/OneButtonLibrary.aspx
 // https://github.com/mathertel/OneButton
@@ -48,9 +52,9 @@ enum viewModes {
 enum alarmModes { UNDEFINED, ONE, TWO, DISABLED };
 enum alarmStates { INVALID, WAITING, SNOOZE, ACTIVE };
 
-#define DCF77_MONITOR_LED 12 // PB4
+#define DCF77_MONITOR_LED 13 // PB5
 // #define DCF77_MONITOR_LED LED_BUILTIN
-#define DCF77_SAMPLE_PIN 13  // PB5 (???) 
+#define DCF77_SAMPLE_PIN 12  // PB4 (???) 
 #define DCF77_INVERTED_SAMPLES 1 // ?
 
 typedef struct {
@@ -121,7 +125,7 @@ extern alarm_time_t alarm;
 extern sync_t sync;
 extern viewModes viewMode, lastViewMode;
 extern alarmModes lastAlarmMode;
-extern void longPeriod(void);
+extern void everySecond(void);
 extern void updateAlarmSettings(void);
 extern OneButton uniButton;
 extern void setupDCF77_Uhr(void);

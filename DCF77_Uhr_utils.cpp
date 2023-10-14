@@ -10,383 +10,12 @@
 
 #include "DCF77_Uhr.h"
 
-Adafruit_7Seg disp1;
-Adafruit_7Seg disp2;
-Adafruit_7Seg disp3;
-OneButton uniButton;
-viewModes viewMode = VIEW_SEC;
-viewModes lastViewMode = VIEW_UNDEFINED;
-alarmModes lastAlarmMode = UNDEFINED;
-
-muTimer periodTimer = muTimer();
-muTimer buzzerTimer = muTimer();
-
-alarm_time_t alarm = {.hour = 0,
-                      .minute = 0,
-                      .snoozeStart = 0,
-                      .mode = UNDEFINED,
-                      .state = INVALID};
-
-sync_t sync = {.hour = SYNC_HOUR,      // nötig?
-               .minute = SYNC_MINUTE,  // nötig?
-               .syncing = false,
-               .quality = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,  0,  0,
-                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 43, 48, 50}};
-
-void setNormalMode(void) {
-  disp1.normal();
-  disp2.normal();
-  disp3.normal();
-}
-
-void setSleepMode(void) {
-  disp1.sleep();
-  disp2.sleep();
-  disp3.sleep();
-}
-
-void refreshDisplays(void) {
-  disp1.sendLed();
-  disp2.sendLed();
-  disp3.sendLed();
-}
-
-uint8_t BCDselectors[] = {ALARM1_HOUR_HI_PIN,   ALARM1_HOUR_LO_PIN,
-                          ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN,
-                          ALARM2_HOUR_HI_PIN,   ALARM2_HOUR_LO_PIN,
-                          ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN};
-                  
-uint8_t digitPos[] = { DIGIT_1, DIGIT_2, DIGIT_3, DIGIT_4 };
-
-// Auxiliary functions for number display
-void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num, bool dp) {
-  // note: "call by reference" for parameter 'disp'
-  uint8_t p = pos;
-  disp.setDigit(digitPos[p--], num % 10, dp);
-  disp.setDigit(digitPos[p],   num / 10);
-}
-void showNumber(Adafruit_7Seg &disp, uint8_t pos, uint8_t num) {
-  showNumber(disp, pos, num, false);
-}
-
-// this function will be called several times after SHORT_PRESS has
-// expired.
-void detectingPress(void *btn) {
-  unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  if (delta >= MEDIUM_PRESS && delta < LONG_PRESS) {
-    alarm.state = WAITING;  // Should also be effective for >=LONG_PRESS
-    if (sync.syncing) {
-      sync.syncing = false;
-      setNormalMode();
-    }
-    setBuzzer(OFF);  // TODO: akustische Rückmeldung?!
-  } else if (!sync.syncing && delta >= LONG_PRESS) {
-    sync.syncing = true;
-    setSleepMode();                 // + syncing, sync.syncing = true
-    alarm.state = ACTIVE;           // provisorisch zum Testen
-    buzzerTimer.cycleResetToOff();  // Suppresses noise
-    // beides später einmalig beim Zeit-Alarm-Vergleich
-  }
-}
-
-// this function will be called when the key is released after SHORT_PRESS
-// has expired.
-void detectingPressStop(void *btn) {
-  unsigned long delta = ((OneButton *)btn)->getPressedMs();
-  if (delta >= SHORT_PRESS && delta < MEDIUM_PRESS) {
-    if (sync.syncing) {
-      sync.syncing = false;
-      setNormalMode();
-    }
-    if (alarm.state == ACTIVE) {
-      alarm.state = SNOOZE;
-      // Switches back to ACTIVE after ALARM_SNOOZE_MAX has elapsed
-      alarm.snoozeStart = millis();
-      setBuzzer(OFF);  // TODO: akustische Rückmeldung?!
-    } else {           // Set next view mode
-      if (viewMode == VIEW_SEC) {
-        viewMode = VIEW_DATE;
-      } else if (viewMode == VIEW_DATE) {
-        viewMode = VIEW_QTY;
-      } else if (viewMode == VIEW_QTY) {
-        viewMode = VIEW_VERSION;
-      } else {
-        viewMode = VIEW_SEC;
-      }
-    }
-  }
-}
-
-alarmModes getAlarmMode(void) {
-  /*
-    Determines the alarm mode as follows:
-
-          o  VCC
-          |
-          o
-         \   Alarm Off / On
-          o
-          |
-          o-----.
-          |     |
-         .-.    o
-     10k | |   \  Alarm 1 / Alarm 2
-         '-'    o
-          |     |
-          o-----o-----------> ALARM_MODE_PIN
-          |
-         .-.
-     10k | |
-         '-'
-          |
-         --- GND
-  */
-  int rawADC = analogRead(ALARM_MODE_PIN);
-  // float val = ((float) rawADC  + 0.5) / 1024.0 * AREF;
-  if (rawADC < ADC_20_PERCENT)  // GND
-    return DISABLED;
-  else if (rawADC > ADC_80_PERCENT)
-    return TWO;                 // VCC
-  else
-    return ONE;                 // VCC / 2
-}
-
-uint8_t bcdRead(uint8_t pos) {
-  /*
-    .---------------------------o ALARM_BCD8_PIN (internal pull-up resistor)
-    |       .-------------------o ALARM_BCD4_PIN (internal pull-up resistor)
-    |       |       .-----------o ALARM_BCD2_PIN (internal pull-up resistor)
-    |       |       |       .---o ALARM_BCD1_PIN (internal pull-up resistor)
-    |       |       |       |
-   ---     ---     ---     ---
-   \ / D1  \ / D2  \ / D3  \ / D4 
-   ---     ---     ---     ---
-    |       |       |       |
-    o       o       o       o
-   \ "8"   \ "4"   \ "2"   \ "1"      The first of the 8 BCD switches
-    o       o       o       o
-    |       |       |       |
-    '-------o-------o-------'
-            |
-            o ALARM1_HOUR_HI_PIN (BCD switch selection, low active)
-  */  
-  digitalWrite(pos, LOW);  // Selecting the specific BCD switch
-  delayMicroseconds(10);   // necessary?
-  // reading the whole port and masking the 4 higher bits and then
-  // inverting the 4 lower bits
-  uint8_t val = (ALARM_BCD_IN_PORT & 0b00001111) ^ 0b00001111;
-  digitalWrite(pos, HIGH); // Deselecting the specific BCD switch
-  return val;
-}
-
-uint8_t getHour(uint8_t hiPos, uint8_t loPos) {
-  uint8_t x = bcdRead(hiPos) * 10 + bcdRead(loPos);
-  // sets bit 7 if the result is invalid
-  if (x > 23) x |= 0x80;
-  return x;
-}
-
-uint8_t getMinute(uint8_t hiPos, uint8_t loPos) {
-  uint8_t x = bcdRead(hiPos) * 10 + bcdRead(loPos);
-  // sets bit 7 if the result is invalid
-  if (x > 59) x |= 0x80;
-  return x;
-}
-
-void updateAlarmSettings(void) {
-  uint8_t x;
-  bool invalid = false;
-  if (alarm.mode == ONE) {
-    disp1.clearPoint(POINT_LOWER_LEFT);
-    disp1.setPoint(POINT_UPPER_LEFT);
-    x = getMinute(ALARM1_MINUTE_HI_PIN, ALARM1_MINUTE_LO_PIN);
-    // mask bit 7
-    alarm.minute = x & 0x7f;
-    // mask bit 6..bit 0
-    invalid |= x & 0x80;
-    x = getHour(ALARM1_HOUR_HI_PIN, ALARM1_HOUR_LO_PIN);
-    alarm.hour = x & 0x7f;
-    invalid |= x & 0x80;
-    Serial.print("ALARM 1: ");
-    Serial.print(alarm.hour); Serial.print(":");
-    Serial.print(alarm.minute);
-    Serial.println((invalid) ? " (invalid)" : "");
-  } else if (alarm.mode == TWO) {
-    disp1.clearPoint(POINT_UPPER_LEFT);
-    disp1.setPoint(POINT_LOWER_LEFT);
-    x = getMinute(ALARM2_MINUTE_HI_PIN, ALARM2_MINUTE_LO_PIN);
-    // mask bit 7
-    alarm.minute = x & 0x7f;
-    // mask bit 6..bit 0
-    invalid |= x & 0x80;
-    x = getHour(ALARM2_HOUR_HI_PIN, ALARM2_HOUR_LO_PIN);
-    alarm.hour = x & 0x7f;
-    invalid |= x & 0x80;
-    Serial.print("ALARM 2: ");
-    Serial.print(alarm.hour); Serial.print(":");
-    Serial.print(alarm.minute);
-    Serial.println((invalid) ? " (invalid)" : "");
-  } else { // DISABLED
-    invalid = true;
-    alarm.minute = ALARM_VAL_UNDEF;
-    alarm.hour = ALARM_VAL_UNDEF;
-    Serial.println("ALARM: DISABLED");
-  }
-  
-  if (invalid) {
-    alarm.state = INVALID;
-    disp1.clearPoint(POINT_UPPER_LEFT);
-    disp1.clearPoint(POINT_LOWER_LEFT);
-  }
-}
-
-void snoozeHandling(void) {
-  if (alarm.state != SNOOZE) return;
-  if ((unsigned long)(millis() - alarm.snoozeStart) >= ALARM_SNOOZE_MAX) {
-    // activate the alarm after the end of the snooze time
-    alarm.state = ACTIVE;
-  }
-  return;
-}
-
-// Turn piezo buzzer on or off
-void setBuzzer(uint8_t x) { digitalWrite(BUZZER_PIN, x); }
-
-void updateBuzzerCycle(void) {
-  if (alarm.state != ACTIVE) return;
-  switch (buzzerTimer.cycleOnOffTrigger(BUZZER_ON, BUZZER_OFF)) {
-    // state changed from 1->0
-    case 0:
-      setBuzzer(OFF);
-      break;
-    // state changed from 0->1
-    case 1:
-      setBuzzer(ON);
-      break;
-    // no state change, timer is running
-    case 2:
-      break;
-  }
-}
-
-volatile unsigned long tick = 0;
-
-void output_handler(const Clock::time_t &decoded_time) {
-  //Serial.print("tick: "); Serial.println(tick);
-}
-
-unsigned long myMillis(void) {// ???
-  unsigned long m;
-  cli();
-  m = tick;
-  sei(); 
-  return m;
-}
-
-void updateDisplays() {
-  uint8_t i;
-  static uint8_t lastLevel = LOW;
-  static uint16_t x_year = 2023;
-  static uint8_t x_month = 8, x_day = 25, x_hour = 10, x_minute = 30, x_second = 0;
-
-  //Serial.print("alarm.state: "); Serial.println(alarm.state);
-  lastLevel = !lastLevel;
-  digitalWrite(DCF77_MONITOR_LED, lastLevel);
-
-  if (false) {
-
-  } else { // dummy clock
-    if (x_second == 59) {
-      x_second = 0;
-      if (x_minute == 59) {
-        x_minute = 0;
-        if (x_hour == 23) {
-          x_hour = 0;
-        } else {
-          x_hour++;
-        }
-      } else {
-        x_minute++;
-      }
-    } else {
-      x_second++;
-    }  
-  }
-
-  // Outputs independent of 'viewMode'
-  showNumber(disp1, 1, x_hour);
-  showNumber(disp1, 3, x_minute);
- 
-  // Outputs dependent on 'viewMode'
-  if (viewMode != lastViewMode) {
-    lastViewMode = viewMode;
-    disp2.clearAll();
-    disp3.clearAll();
-  }
-  switch (viewMode) {
-    case VIEW_SEC:
-      showNumber(disp2, 1, x_day, true);
-      showNumber(disp2, 3, x_month, true);
-      showNumber(disp3, 3, x_second);
-      break;
-    case VIEW_DATE:
-      showNumber(disp2, 1, x_day, true);
-      showNumber(disp2, 3, x_month, true);
-      showNumber(disp3, 1, x_year / 100);
-      showNumber(disp3, 3, x_year % 100);
-      break;
-    case VIEW_QTY:
-      i = ARRAYSIZE(sync.quality) - 4;
-      showNumber(disp2, 1, sync.quality[i++], true);
-      showNumber(disp2, 3, sync.quality[i++], true);
-      showNumber(disp3, 1, sync.quality[i++], true);
-      showNumber(disp3, 3, sync.quality[i],   true);
-      break;
-    case VIEW_VERSION:
-      showNumber(disp2, 1, DCF77_UHR_MAJOR_VERSION, true);
-      showNumber(disp2, 3, DCF77_UHR_MINOR_VERSION, true);
-      showNumber(disp3, 1, DCF77_UHR_PATCH_VERSION);
-      break;
-    default:
-      break;
-  }
-}
-
-uint8_t sample_input_pin() {
-
-  tick++; // Ersatz für millis()
-  if (tick % 1000 == 0) {
-    // Serial.print("1s-tick: "); Serial.println(tick);
-  }
-
-  if (sync.syncing)  {
-  /*
-    const uint8_t sampled_data = DCF77_INVERTED_SAMPLES ^ digitalRead(DCF77_SAMPLE_PIN);
-    digitalWrite(DCF77_MONITOR_LED, sampled_data);
-    return sampled_data;
-  */
-    return LOW;
-  } else {
-    ///digitalWrite(DCF77_MONITOR_LED, HIGH); // einmalig beim Abschalten von "syncing"
-    return LOW;
-  }
-}
-
-void longPeriod(void) {// Calls that are rarely required
-  snoozeHandling();
-  alarm.mode = getAlarmMode();
-  updateAlarmSettings();
-  updateDisplays();
-  refreshDisplays();
-}
-
-void stop_timer_0(void) {
-#if defined(TIMSK) && defined(TOIE0)
-  cbi (TIMSK, TOIE0);
-#elif defined(TIMSK0) && defined(TOIE0)
-  cbi (TIMSK0, TOIE0);
+#ifndef cbi
+#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 #endif
-}
+#ifndef sbi
+#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
+#endif
 
 void restart_timer_0(void) {
 // enable timer 0 overflow interrupt
@@ -400,56 +29,190 @@ void restart_timer_0(void) {
 #endif
 }
 
-// TODO: In preSyncing stop_timer_0();
-// TODO: In postSyncing restart_timer_0();
+
+Adafruit_7Seg disp1;
+
+#if defined(__AVR__)
+const uint8_t dcf77_analog_sample_pin = 5;
+const uint8_t dcf77_sample_pin = 12;       // A5 == d19
+const uint8_t dcf77_inverted_samples = 1;
+const uint8_t dcf77_analog_samples = 0;
+// const uint8_t dcf77_pin_mode = INPUT;  // disable internal pull up
+const uint8_t dcf77_pin_mode = INPUT_PULLUP;  // enable internal pull up
+
+const uint8_t dcf77_monitor_led = 13;  // A4 == d18
+
+uint8_t ledpin(const uint8_t led) {
+    return led;
+}
+#elif defined(__STM32F1__)
+const uint8_t dcf77_sample_pin = PB6;
+const uint8_t dcf77_inverted_samples = 1; //output from HKW EM6 DCF 3V
+const WiringPinMode dcf77_pin_mode = INPUT_PULLUP;  // enable internal pull up
+const uint8_t dcf77_monitor_led = PC13;
+uint8_t ledpin(const int8_t led) {
+    return led;
+}
+#else
+const uint8_t dcf77_sample_pin = 53;
+const uint8_t dcf77_inverted_samples = 1;
+
+// const uint8_t dcf77_pin_mode = INPUT;  // disable internal pull up
+const uint8_t dcf77_pin_mode = INPUT_PULLUP;  // enable internal pull up
+
+const uint8_t dcf77_monitor_led = 19;
+
+uint8_t ledpin(const uint8_t led) {
+    return led<14? led: led+(54-14);
+}
+#endif
+
+unsigned long ticks = 0;
+
+uint8_t sample_input_pin() {// Called every 1ms
+  // vereinfachen!?
+  ticks++;
+  const uint8_t sampled_data =
+    #if defined(__AVR__)
+    dcf77_inverted_samples ^ (dcf77_analog_samples? (analogRead(dcf77_analog_sample_pin) > 200)
+                                                  : digitalRead(dcf77_sample_pin));
+    #else
+    dcf77_inverted_samples ^ digitalRead(dcf77_sample_pin);
+    #endif
+
+  digitalWrite(ledpin(dcf77_monitor_led), sampled_data);
+  return sampled_data;
+}
+
+// Turn piezo buzzer on or off
+void setBuzzer(uint8_t x) { digitalWrite(BUZZER_PIN, x); }
+
+void paddedPrint(BCD::bcd_t n) {
+  sprint(n.digit.hi);
+  sprint(n.digit.lo);
+}
+
+bool first = true;
+
+void everySecond(void) {
+  Clock::time_t now;
+  
+  if (first) {
+    first = false;
+    setBuzzer(ON); delay(100); setBuzzer(OFF); // sync ready
+  }
+  
+  DCF77_Clock::get_current_time(now);
+
+  if (now.month.val > 0) {
+#ifdef DEBUG
+    switch (DCF77_Clock::get_clock_state()) {
+        case Clock::useless: sprint(F("useless ")); break;
+        case Clock::dirty:   sprint(F("dirty:  ")); break;
+        case Clock::synced:  sprint(F("synced: ")); break;
+        case Clock::locked:  sprint(F("locked: ")); break;
+    }
+    sprint(' ');
+
+    sprint(F("20"));
+    paddedPrint(now.year);
+    sprint('-');
+    paddedPrint(now.month);
+    sprint('-');
+    paddedPrint(now.day);
+    sprint(' ');
+
+    paddedPrint(now.hour);
+    sprint(':');
+    paddedPrint(now.minute);
+    sprint(':');
+    paddedPrint(now.second);
+
+    sprint("+0");
+    sprint(now.uses_summertime? '2': '1');
+    sprintln();
+#endif
+    disp1.setDigit(DIGIT_1, now.hour.digit.hi);
+    disp1.setDigit(DIGIT_2, now.hour.digit.lo);
+    disp1.setDigit(DIGIT_3, now.minute.digit.hi);
+    disp1.setDigit(DIGIT_4, now.minute.digit.lo);
+    disp1.sendLed();
+  }  
+}
 
 void setupDCF77_Uhr(void) {
-  analogReference(DEFAULT);
-  
-  Serial.begin(9600);
-  //Serial.begin(115200);
-  while (!Serial) ;
-
-  pinMode(DCF77_MONITOR_LED, OUTPUT);
-  pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);
-  // /*
-  using namespace Clock;
-  DCF77_Clock::setup();
-  DCF77_Clock::set_input_provider(sample_input_pin);
-  DCF77_Clock::set_output_handler(output_handler);
-  restart_timer_0(); // ???
-  // */
-
+  analogReference(DEFAULT); 
 
   disp1.begin(DISP1_ADR);
-  disp2.begin(DISP2_ADR);
-  disp3.begin(DISP3_ADR);
-  disp1.setBrightness(16);  // 0..16
-  disp2.setBrightness(3);   // 0..16
-  disp3.setBrightness(3);   // 0..16
-  disp1.setPoint(COLON);
+  disp1.sleep();
 
-  pinMode(ALARM_BCD1_PIN, INPUT_PULLUP);
-  pinMode(ALARM_BCD2_PIN, INPUT_PULLUP);
-  pinMode(ALARM_BCD4_PIN, INPUT_PULLUP);
-  pinMode(ALARM_BCD8_PIN, INPUT_PULLUP);
-  // sets all BCD switch selection pins as output and level to high (no selection)
-  for (uint8_t i = 0; i < ARRAYSIZE(BCDselectors); i++) {
-    pinMode(BCDselectors[i], OUTPUT);
-    digitalWrite(BCDselectors[i], HIGH);
-  }
+  Serial.begin(BAUDRATE);
+  while (!Serial) ;
+#ifdef DEBUG
+  sprintln();
+  sprintln();
+  sprintln();
+  sprintln("=== setupDCF77_Uhr ====");
+  sprintln();
+  sprintln(F("Simple DCF77 Clock V3.1.1"));
+  sprintln(F("(c) Udo Klein 2016"));
+  sprintln(F("www.blinkenlight.net"));
+  sprintln();
+  sprint(F("Sample Pin:      ")); sprintln(dcf77_sample_pin);
+  sprint(F("Sample Pin Mode: ")); sprintln(dcf77_pin_mode);
+  sprint(F("Inverted Mode:   ")); sprintln(dcf77_inverted_samples);
+  sprint(F("Analog Mode:     ")); sprintln(dcf77_analog_samples);
+  sprint(F("Monitor Pin:     ")); sprintln(ledpin(dcf77_monitor_led));
+  sprintln();
+  sprintln();
+  sprintln(F("Initializing..."));
+#endif
 
-  uniButton = OneButton(UNI_BUTTON_PIN,     // Input pin for the button
-                        true,               // Button is active LOW
-                        true                // Enable internal pull-up resistor
-  );
-  uniButton.setPressMs(SHORT_PRESS);
-  uniButton.attachDuringLongPress(detectingPress,
-                                  &uniButton);  // During Long Press events
-  uniButton.attachLongPressStop(detectingPressStop,
-                                &uniButton);  // Long Press Stop event
-
+  ///pinMode(ledpin(dcf77_monitor_led), OUTPUT); // ???
+  ///pinMode(dcf77_sample_pin, dcf77_pin_mode);  // ???
+  
+  pinMode(DCF77_MONITOR_LED, OUTPUT);
+  pinMode(DCF77_SAMPLE_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
+  setBuzzer(ON); delay(100); setBuzzer(OFF); // setup begin
 
-  setBuzzer(ON); delay(100); setBuzzer(OFF); // setup ready
+  using namespace Clock;
+  DCF77_Clock::setup();
+  restart_timer_0();
+  DCF77_Clock::set_input_provider(sample_input_pin);
+
+  static uint8_t count = 0;
+
+  // Wait till clock is synced, depending on the signal quality this may take
+  // rather long. About 5 minutes with a good signal, 30 minutes or longer
+  // with a bad signal
+  for (uint8_t state = Clock::useless;
+    state == Clock::useless || state == Clock::dirty;
+    state = DCF77_Clock::get_clock_state()) {
+
+    // wait for next sec
+    Clock::time_t now;
+    DCF77_Clock::get_current_time(now);
+#ifdef DEBUG
+    // render one dot per second while initializing
+    ///sprint('.');
+    sprint(state);
+    ++count;
+    if (count == 60) {
+      count = 0;
+      Serial.println();
+    }
+#endif
+  }
+  disp1.normal();
+  disp1.setBrightness(16);  // 0..16
+  disp1.setPoint(COLON); 
 }
+/*
+useless  = 0,  // waiting for good enough signal
+dirty    = 1,  // time data available but unreliable
+free     = 2,  // clock was once synced but now may deviate more than 200 ms, must not re-lock if valid phase is detected
+unlocked = 3,  // lock was once synced, inaccuracy below 200 ms, may re-lock if a valid phase is detected
+locked   = 4,  // clock driven by accurate phase, time is accurate but not all decoder stages have sufficient quality for sync
+synced   = 5   // best possible quality, clock is 100% synced
+*/
