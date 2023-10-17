@@ -1,5 +1,5 @@
 
-#include "beepers.h"
+#include "beeper.h"
 
 uint8_t buzzer_pin;
 unsigned long single_beep_on;
@@ -10,7 +10,7 @@ uint8_t buzzerState = 255;
 unsigned long singleBeepCounter = 0;
 unsigned long alternatingBeepCounter = 0;
 
-void setupBeepers(const uint8_t pin, const unsigned long s_on,
+void setupBeeper(const uint8_t pin, const unsigned long s_on,
   const unsigned long a_on, const unsigned long a_off) {
   buzzer_pin = pin;
   pinMode(pin, OUTPUT);
@@ -35,7 +35,7 @@ void alternatingBeep(const uint8_t sw) {
   }
 }
 
-void alternatingBeepsHandling(const unsigned long ticks) {
+void alternatingBeepHandling(const unsigned long ticks) {
   static unsigned long lastMillis = 0;
   if (alternatingBeepCounter == 0 || ticks == lastMillis) return;
   lastMillis = ticks;
@@ -66,8 +66,8 @@ void singleBeepHandling(const unsigned long ticks) {
   } 
 }
 
-void beepersHandling(const unsigned long t) {
+void beeperHandling(const unsigned long t) {
   singleBeepHandling(t);
-  alternatingBeepsHandling(t);
+  alternatingBeepHandling(t);
 }
 

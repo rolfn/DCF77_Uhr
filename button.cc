@@ -41,8 +41,7 @@ void setupButtonCallbackLong(unsigned long period,
 }
 
 void buttonHandling(const unsigned long t) {
-  static unsigned long startMillis = 0;
-  static unsigned long lastMillis = 0;
+  static unsigned long startMillis = 0, lastMillis = 0;
   static bool buttonActive = false;
   if (t == lastMillis) return;
   lastMillis = t;
@@ -66,7 +65,7 @@ void buttonHandling(const unsigned long t) {
       buttonActive = false;
     }
   } else {
-    buttonActive = (bool)(!digitalRead(buttonPin));
+    buttonActive = (bool)!digitalRead(buttonPin);
     if (buttonActive) startMillis = t;
   }
 
