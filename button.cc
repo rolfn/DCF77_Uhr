@@ -1,7 +1,7 @@
 
 #include "button.h"
 
-uint8_t buttonPin = 255;
+uint8_t buttonPin = BUTTON_PIN;
 
 unsigned long shortPeriod = 0;  // ms
 unsigned long mediumPeriod = 0; // ms
@@ -53,7 +53,8 @@ void buttonHandling(const unsigned long t) {
   if (t == lastMillis) return;
   lastMillis = t;
   if (buttonActive) {
-    if (digitalRead(buttonPin) == LOW) {
+    if (digitalReadFast(buttonPin) == LOW) {
+    ///if (digitalRead(buttonPin) == LOW) {
       if (pressedShort && (startMillis + shortPeriod) == t) {
         (*pressedShort)();
       } else if (pressedMedium && (startMillis + mediumPeriod) == t) {
@@ -75,7 +76,8 @@ void buttonHandling(const unsigned long t) {
       buttonActive = false;
     }
   } else {
-    buttonActive = (bool)!digitalRead(buttonPin);
+    buttonActive = (bool)!digitalReadFast(buttonPin);
+    ///buttonActive = (bool)!digitalRead(buttonPin);
     if (buttonActive) startMillis = t;
   }
 

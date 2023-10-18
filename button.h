@@ -3,6 +3,11 @@
 #define BUTTON_H
 
 #include <Arduino.h>
+#define THROW_ERROR_IF_NOT_FAST digi
+#include <digitalWriteFast.h>
+// pio lib install -g ~/digitalWriteFast-1.2.0.zip
+
+#define BUTTON_PIN 10      // PB2
 
 typedef void (*callbackFunction)(void);
 typedef void (*parameterizedCallbackFunction)(unsigned long ms);

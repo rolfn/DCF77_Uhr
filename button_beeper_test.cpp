@@ -9,12 +9,12 @@ TODO: https://github.com/ArminJo/digitalWriteFast
 
 #define PERIOD 4000L
 
-#define BUZZER_PIN 11             // PB3  (piezo active buzzer)
+#define BUZZER_PIN 11             // PB3  (piezo active buzzer) 
 #define SINGLE_BEEP_ON       300L // ms
 #define ALTERNATING_BEEP_ON  300L // ms
 #define ALTERNATING_BEEP_OFF 150L // ms
 
-#define BUTTON_PIN 10      // PB2
+#define BUTTON_PIN 10      // PB2 // ???!!!
 #define SHORT_PRESS    50L // ms
 #define MEDIUM_PRESS 1500L // ms
 #define LONG_PRESS   3500L // ms
@@ -48,7 +48,7 @@ void setup() {
   setupBeeper(BUZZER_PIN, SINGLE_BEEP_ON, ALTERNATING_BEEP_ON,
     ALTERNATING_BEEP_OFF);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  setupButton(BUTTON_PIN);
+  //setupButton(BUTTON_PIN);
   setupButtonCallbackShort(SHORT_PRESS, &buttonReleasedShort, &buttonPressedShort);
   setupButtonCallbackMedium(MEDIUM_PRESS, &buttonReleasedMedium, &buttonPressedMedium);
   setupButtonCallbackLong(LONG_PRESS, &buttonReleasedLong, &buttonPressedLong);
