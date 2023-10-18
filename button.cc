@@ -3,64 +3,74 @@
 
 uint8_t buttonPin = 255;
 
-unsigned long shortPeriod = 0;
-unsigned long mediumPeriod = 0;
-unsigned long longPeriod = 0;
+unsigned long shortPeriod = 0;  // ms
+unsigned long mediumPeriod = 0; // ms
+unsigned long longPeriod = 0;   // ms
 
-void (*releasedShort)(unsigned long ms) = NULL; 
-void (*releasedMedium)(unsigned long ms) = NULL; 
-void (*releasedLong)(unsigned long ms) = NULL; 
-void (*pressedShort)() = NULL; 
-void (*pressedMedium)() = NULL; 
-void (*pressedLong)() = NULL; 
+parameterizedCallbackFunction releasedShort = NULL; 
+parameterizedCallbackFunction releasedMedium = NULL; 
+parameterizedCallbackFunction releasedLong = NULL;
+callbackFunction pressedShort = NULL;
+callbackFunction pressedMedium = NULL;
+callbackFunction pressedLong = NULL;
 
 void setupButton(uint8_t pin) {
   buttonPin = pin;
 }
 
-void setupButtonCallbackShort(unsigned long period,
-  void (*whenReleased)(unsigned long ms), 
-  void (*whilePressed)()) {
+void setupButtonCallbackShort(const unsigned long period,
+  const parameterizedCallbackFunction whenReleased, 
+  const callbackFunction whilePressed) {
   shortPeriod = period;
+  // Function that is called when the button is released after time "shortPeriod".
   releasedShort = whenReleased;
+  // Function that is called when "shortPeriod" has passed while the button is pressed.
   pressedShort = whilePressed;
 }
-void setupButtonCallbackMedium(unsigned long period,
-  void (*whenReleased)(unsigned long ms), 
-  void (*whilePressed)()) {
-  mediumPeriod =   period;
+void setupButtonCallbackMedium(const unsigned long period,
+  const parameterizedCallbackFunction whenReleased, 
+  const callbackFunction whilePressed) {
+  mediumPeriod = period;
+  // Function that is called when the button is released after time "mediumPeriod".
   releasedMedium = whenReleased;
+  // Function that is called when "mediumPeriod" has passed while the button is pressed.
   pressedMedium = whilePressed;
 }
-void setupButtonCallbackLong(unsigned long period,
-  void (*whenReleased)(unsigned long ms), 
-  void (*whilePressed)()) {
-  longPeriod =  period;
+void setupButtonCallbackLong(const unsigned long period,
+  const parameterizedCallbackFunction whenReleased, 
+  const callbackFunction whilePressed) {
+  longPeriod = period;
+  // Function that is called when the button is released after time "longPeriod".
   releasedLong = whenReleased;
+  // Function that is called when "longPeriod" has passed while the button is pressed.
   pressedLong = whilePressed;
 }
 
 void buttonHandling(const unsigned long t) {
   static unsigned long startMillis = 0, lastMillis = 0;
+  unsigned long dt;
   static bool buttonActive = false;
   if (t == lastMillis) return;
   lastMillis = t;
   if (buttonActive) {
     if (digitalRead(buttonPin) == LOW) {
-      if ((startMillis + shortPeriod) == t) {
-        if (pressedShort) (*pressedShort)();
-      } else if ((startMillis + mediumPeriod) == t) {
-        if (pressedMedium) (*pressedMedium)();
-      } else if ((startMillis + longPeriod) == t) {
-        if (pressedLong) (*pressedLong)();
+      if (pressedShort && (startMillis + shortPeriod) == t) {
+        (*pressedShort)();
+      } else if (pressedMedium && (startMillis + mediumPeriod) == t) {
+        (*pressedMedium)();
+      } else if (pressedLong && (startMillis + longPeriod) == t) {
+        (*pressedLong)();
       }
     } else {
-      if ((startMillis + shortPeriod) <= t && (startMillis + mediumPeriod) > t) {
-        if (releasedShort) (*releasedShort)(t - startMillis);
-      } else if ((startMillis + mediumPeriod) <= t && (startMillis + longPeriod) > t) {
-        if (releasedMedium) (*releasedMedium)(t - startMillis);
-      } else if ((startMillis + longPeriod) <= t) {
-        if (releasedLong) (*releasedLong)(t - startMillis);
+      dt = t - startMillis;
+      if (releasedShort && (startMillis + shortPeriod) <= t &&
+        (startMillis + mediumPeriod) > t) {
+        (*releasedShort)(dt);
+      } else if (releasedMedium && (startMillis + mediumPeriod) <= t &&
+        (startMillis + longPeriod) > t) {
+        (*releasedMedium)(dt);
+      } else if (releasedLong && (startMillis + longPeriod) <= t) {
+        (*releasedLong)(dt);
       }
       buttonActive = false;
     }
