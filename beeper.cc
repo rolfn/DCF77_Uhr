@@ -1,7 +1,7 @@
 
 #include "beeper.h"
 
-uint8_t buzzer_pin;
+//uint8_t buzzer_pin;
 unsigned long single_beep_on;
 unsigned long alternating_beep_on;
 unsigned long alternating_beep_off;
@@ -10,24 +10,15 @@ uint8_t buzzerState = 255;
 unsigned long singleBeepCounter = 0;
 unsigned long alternatingBeepCounter = 0;
 
-void setupBeeper(const uint8_t pin, const unsigned long s_on,
-  const unsigned long a_on, const unsigned long a_off) {
-  buzzer_pin = pin;
-  pinMode(pin, OUTPUT);
-  single_beep_on = s_on;
-  alternating_beep_on = a_on;
-  alternating_beep_off = a_off;
-}
-
 void setBuzzer(const uint8_t x) {
   if (buzzerState == x) return;
   buzzerState = x;
-  digitalWrite(buzzer_pin, x); 
+  digitalWrite(BUZZER_PIN, x); 
 }
 
 void alternatingBeep(const uint8_t sw) {
   if (sw == ON) {
-    alternatingBeepCounter = alternating_beep_on;
+    alternatingBeepCounter = ALTERNATING_BEEP_ON;
     setBuzzer(ON);
   } else {
     alternatingBeepCounter = 0;
@@ -42,17 +33,17 @@ void alternatingBeepHandling(const unsigned long ticks) {
   alternatingBeepCounter--;
   if (alternatingBeepCounter == 0) {
     if (buzzerState == ON) {
-      alternatingBeepCounter = alternating_beep_off;
+      alternatingBeepCounter = ALTERNATING_BEEP_OFF;
       setBuzzer(OFF);
     } else {
-      alternatingBeepCounter = alternating_beep_on;
+      alternatingBeepCounter = ALTERNATING_BEEP_ON;
       setBuzzer(ON);
     }
   } 
 }
 
 void singleBeep(void) {
-  singleBeepCounter = single_beep_on;
+  singleBeepCounter = SINGLE_BEEP_ON;
   setBuzzer(ON);
 }
 
